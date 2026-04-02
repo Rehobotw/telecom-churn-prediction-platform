@@ -1,5 +1,9 @@
 
 # Telecom Customer Churn Prediction Platform
+![Python](https://img.shields.io/badge/Python-3.9+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green)
+![React](https://img.shields.io/badge/React-18.2.0-blue)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
 A full-stack machine learning platform that predicts telecom customer churn and provides insights through an interactive dashboard.
 
