@@ -1,28 +1,26 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from src.batch_predict import batch_predict
+from src.config import RAW_DATA_PATH
 from src.predict import predict_single
 
-# Raw sample payload matching the original telecom churn schema.
-frontend_input = {
-    "customerID": "9999-TEST1",
-    "gender": "Male",
-    "SeniorCitizen": 0,
-    "Partner": "No",
-    "Dependents": "No",
-    "tenure": 8,
-    "PhoneService": "Yes",
-    "MultipleLines": "No",
-    "InternetService": "Fiber optic",
-    "OnlineSecurity": "No",
-    "OnlineBackup": "No",
-    "DeviceProtection": "No",
-    "TechSupport": "No",
-    "StreamingTV": "No",
-    "StreamingMovies": "No",
-    "Contract": "Month-to-month",
-    "PaperlessBilling": "Yes",
-    "PaymentMethod": "Electronic check",
-    "MonthlyCharges": 85.0,
-    "TotalCharges": "680.00",
-}
 
-result = predict_single(frontend_input)
-print(f"Result: {result}")
+def run_sample_tests() -> None:
+    sample_df = pd.read_csv(RAW_DATA_PATH).head(5).drop(columns=["Churn"], errors="ignore")
+
+    single_input = sample_df.iloc[0].to_dict()
+    single_result = predict_single(single_input)
+    print("Single prediction:")
+    print(single_result)
+
+    scored_df, records = batch_predict(sample_df)
+    print("\nBatch prediction preview:")
+    print(scored_df[["probability", "prediction", "risk"]].head())
+    print("\nBatch prediction JSON preview:")
+    print(records[:2])
+
+
+if __name__ == "__main__":
+    run_sample_tests()

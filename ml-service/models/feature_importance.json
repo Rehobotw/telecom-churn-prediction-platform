@@ -1,0 +1,182 @@
+[
+  {
+    "feature": "num__MonthlyCharges",
+    "importance": 1.9934682018627503
+  },
+  {
+    "feature": "cat__InternetService_Fiber optic",
+    "importance": 1.299306364641608
+  },
+  {
+    "feature": "num__tenure",
+    "importance": 1.298987412213314
+  },
+  {
+    "feature": "cat__InternetService_DSL",
+    "importance": 1.1431932211310227
+  },
+  {
+    "feature": "cat__Contract_Two year",
+    "importance": 0.8230774325052901
+  },
+  {
+    "feature": "cat__InternetService_No",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__OnlineSecurity_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__OnlineBackup_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__DeviceProtection_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__TechSupport_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__StreamingTV_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "cat__StreamingMovies_No internet service",
+    "importance": 0.5950260761683035
+  },
+  {
+    "feature": "num__TotalCharges",
+    "importance": 0.5762680691811676
+  },
+  {
+    "feature": "cat__Contract_Month-to-month",
+    "importance": 0.5407914716757338
+  },
+  {
+    "feature": "cat__StreamingMovies_Yes",
+    "importance": 0.51756816998034
+  },
+  {
+    "feature": "cat__StreamingTV_Yes",
+    "importance": 0.5168107390002913
+  },
+  {
+    "feature": "cat__PhoneService_No",
+    "importance": 0.489163214644549
+  },
+  {
+    "feature": "cat__MultipleLines_No phone service",
+    "importance": 0.489163214644549
+  },
+  {
+    "feature": "cat__PaperlessBilling_No",
+    "importance": 0.4045968631776992
+  },
+  {
+    "feature": "cat__StreamingMovies_No",
+    "importance": 0.3614550264697784
+  },
+  {
+    "feature": "cat__StreamingTV_No",
+    "importance": 0.36069759548971564
+  },
+  {
+    "feature": "cat__Dependents_Yes",
+    "importance": 0.3325205147073959
+  },
+  {
+    "feature": "cat__MultipleLines_Yes",
+    "importance": 0.3322808100543991
+  },
+  {
+    "feature": "cat__MultipleLines_No",
+    "importance": 0.28203052806755957
+  },
+  {
+    "feature": "cat__PaymentMethod_Credit card (automatic)",
+    "importance": 0.24457490428382325
+  },
+  {
+    "feature": "cat__gender_Female",
+    "importance": 0.23131949061183188
+  },
+  {
+    "feature": "cat__Partner_No",
+    "importance": 0.23019534790138255
+  },
+  {
+    "feature": "cat__DeviceProtection_Yes",
+    "importance": 0.2201827980696289
+  },
+  {
+    "feature": "cat__PaymentMethod_Bank transfer (automatic)",
+    "importance": 0.21755338510041386
+  },
+  {
+    "feature": "cat__Partner_Yes",
+    "importance": 0.20871758475632834
+  },
+  {
+    "feature": "cat__gender_Male",
+    "importance": 0.20759344204587354
+  },
+  {
+    "feature": "cat__PaymentMethod_Electronic check",
+    "importance": 0.16727316261275108
+  },
+  {
+    "feature": "cat__Contract_One year",
+    "importance": 0.15662697182815744
+  },
+  {
+    "feature": "cat__OnlineBackup_Yes",
+    "importance": 0.15208168617763068
+  },
+  {
+    "feature": "cat__PaymentMethod_Mailed check",
+    "importance": 0.14405780588624348
+  },
+  {
+    "feature": "cat__OnlineSecurity_No",
+    "importance": 0.12764233142272077
+  },
+  {
+    "feature": "cat__Dependents_No",
+    "importance": 0.10639241795029526
+  },
+  {
+    "feature": "cat__TechSupport_No",
+    "importance": 0.10135974471225258
+  },
+  {
+    "feature": "cat__DeviceProtection_No",
+    "importance": 0.06406965455906183
+  },
+  {
+    "feature": "cat__TechSupport_Yes",
+    "importance": 0.05475339879832121
+  },
+  {
+    "feature": "num__SeniorCitizen",
+    "importance": 0.05379576167865454
+  },
+  {
+    "feature": "cat__PhoneService_Yes",
+    "importance": 0.05025028198684059
+  },
+  {
+    "feature": "cat__PaperlessBilling_Yes",
+    "importance": 0.03431606948000738
+  },
+  {
+    "feature": "cat__OnlineSecurity_Yes",
+    "importance": 0.02847081208784799
+  },
+  {
+    "feature": "cat__OnlineBackup_No",
+    "importance": 0.004031457332957796
+  }
+]
