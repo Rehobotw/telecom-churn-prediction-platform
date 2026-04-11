@@ -31,6 +31,15 @@ app.include_router(analytics_router)
 app.include_router(metrics_router)
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "service": "Telecom Churn Prediction ML Service",
+        "status": "running",
+        "docs": "/docs",
+    }
+
+
 @app.on_event("startup")
 def warmup_model() -> None:
     try:
