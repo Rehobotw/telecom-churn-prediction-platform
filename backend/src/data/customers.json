@@ -1,0 +1,16 @@
+[
+  {
+    "customerId": "183825e0-7e59-4b4c-b09c-7def8a13b468",
+    "churnProbability": 0.82,
+    "churnPrediction": true,
+    "riskLevel": "High",
+    "timestamp": "2026-04-12T14:20:49.919Z",
+    "customerData": {
+      "tenure": 12,
+      "monthlyCharges": 70,
+      "contractType": "month-to-month",
+      "internetService": "fiber optic",
+      "paymentMethod": "electronic check"
+    }
+  }
+]
