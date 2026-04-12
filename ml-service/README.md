@@ -7,6 +7,7 @@ Production-grade FastAPI microservice for telecom churn prediction and dashboard
 - Modular training and inference pipeline
 - Reusable preprocessing with ColumnTransformer
 - Single and batch churn prediction endpoints
+- Train/test dataset access endpoints
 - Risk banding: High, Medium, Low
 - Saved evaluation metrics and feature importance for dashboards
 
@@ -44,6 +45,8 @@ Production-grade FastAPI microservice for telecom churn prediction and dashboard
 - GET /health
 - POST /predict
 - POST /batch_predict
+- GET /data/train
+- GET /data/test
 - GET /analytics
 - GET /metrics
 
