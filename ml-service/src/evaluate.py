@@ -16,18 +16,19 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 
-from .config import METRICS_PATH, MODEL_PATH, RAW_DATA_PATH, RANDOM_STATE, TARGET_COLUMN, TEST_SIZE, THRESHOLD
-from .preprocessing import load_dataset, load_preprocessor, split_features_target, transform_data
+from .config import METRICS_PATH, MODEL_PATH, PROCESSED_DATA_PATH, RANDOM_STATE, TARGET_COLUMN, TEST_SIZE
+from .preprocessing import load_dataset, split_features_target
 
 
-def evaluate_and_save_metrics(raw_data_path: Path | str = RAW_DATA_PATH) -> Dict[str, Any]:
+def evaluate_and_save_metrics(processed_data_path: Path | str = PROCESSED_DATA_PATH) -> Dict[str, Any]:
     if not Path(MODEL_PATH).exists():
         raise FileNotFoundError("Model artifact is missing. Train the model first.")
 
-    model = joblib.load(MODEL_PATH)
-    preprocessor = load_preprocessor()
+    if not Path(processed_data_path).exists():
+        raise FileNotFoundError("Processed dataset is missing. Run model training first.")
 
-    df = load_dataset(raw_data_path)
+    model = joblib.load(MODEL_PATH)
+    df = load_dataset(processed_data_path)
     X, y = split_features_target(df, target_column=TARGET_COLUMN)
 
     _, X_test, _, y_test = train_test_split(
@@ -38,9 +39,8 @@ def evaluate_and_save_metrics(raw_data_path: Path | str = RAW_DATA_PATH) -> Dict
         stratify=y,
     )
 
-    X_test_transformed = transform_data(preprocessor, X_test)
-    y_prob = model.predict_proba(X_test_transformed)[:, 1]
-    y_pred = (y_prob >= THRESHOLD).astype(int)
+    y_prob = model.predict_proba(X_test)[:, 1]
+    y_pred = model.predict(X_test)
 
     fpr, tpr, _ = roc_curve(y_test, y_prob)
     cm = confusion_matrix(y_test, y_pred)
@@ -51,7 +51,6 @@ def evaluate_and_save_metrics(raw_data_path: Path | str = RAW_DATA_PATH) -> Dict
         "recall": float(recall_score(y_test, y_pred, zero_division=0)),
         "f1": float(f1_score(y_test, y_pred, zero_division=0)),
         "roc_auc": float(roc_auc_score(y_test, y_prob)),
-        "threshold": float(THRESHOLD),
         "confusion_matrix": cm.tolist(),
         "roc_curve": {
             "fpr": [float(value) for value in fpr.tolist()],
@@ -66,5 +65,3 @@ def evaluate_and_save_metrics(raw_data_path: Path | str = RAW_DATA_PATH) -> Dict
 
 if __name__ == "__main__":
     print(evaluate_and_save_metrics())
-
-

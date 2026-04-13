@@ -10,6 +10,7 @@ from routes.batch import router as batch_router
 from routes.data_split import router as data_split_router
 from routes.health import router as health_router
 from routes.metrics import router as metrics_router
+from routes.model_info import router as model_info_router
 from routes.predict import router as predict_router
 from src.predict import load_artifacts
 
@@ -48,6 +49,7 @@ app.include_router(batch_router)
 app.include_router(data_split_router)
 app.include_router(analytics_router)
 app.include_router(metrics_router)
+app.include_router(model_info_router)
 
 
 @app.get("/")

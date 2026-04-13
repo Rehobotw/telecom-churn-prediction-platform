@@ -1,3 +1,5 @@
+import { faker } from "@faker-js/faker";
+
 export type TrendPoint = {
   month: string;
   churnRate: number;
@@ -11,6 +13,7 @@ export type FeatureImportancePoint = {
 
 export type CustomerRecord = {
   id: string;
+  displayId: string;
   name: string;
   email: string;
   tenure: number;
@@ -28,6 +31,7 @@ export type OverviewResponse = {
   churnRate: number;
   retentionRate: number;
   predictionsToday: number;
+  modelType?: string;
   churnRateDelta?: number;
   retentionRateDelta?: number;
   trendData: TrendPoint[];
@@ -54,6 +58,8 @@ export type ModelMetricsResponse = {
 };
 
 export type PredictionPayload = {
+  customerName?: string;
+  email?: string;
   gender: "Male" | "Female";
   dependents: boolean;
   tenure: number;
@@ -71,20 +77,75 @@ export type PredictionPayload = {
 };
 
 export type PredictionResponse = {
+  customerId: string;
+  displayId: string;
   probability: number;
   riskLevel: "High" | "Medium" | "Low";
   prediction: boolean;
+  timestamp: string;
 };
 
 export type BatchPredictionRow = {
   id: string;
+  displayId: string;
+  customerName?: string;
+  email?: string;
   tenure: number;
   monthlyCharges: number;
   probability: number;
   riskLevel: string;
+  prediction: boolean;
+  timestamp?: string;
+};
+
+export type BatchPredictionResponse = {
+  rows: BatchPredictionRow[];
+  csvContent: string;
 };
 
 const API_BASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+function formatDisplayCustomerId(id: string) {
+  const normalized = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const compact = normalized.slice(-8).padStart(8, "0");
+  return `CUST-${compact.slice(0, 4)}-${compact.slice(4)}`;
+}
+
+function hashSeed(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function getFakeIdentity(seedSource: string) {
+  faker.seed(hashSeed(seedSource) || 1);
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  return {
+    name: `${firstName} ${lastName}`,
+    email: faker.internet.email({ firstName, lastName }).toLowerCase(),
+  };
+}
+
+function isPlaceholderIdentity(value: string | undefined) {
+  if (!value?.trim()) {
+    return true;
+  }
+
+  return /^batch customer \d+$/i.test(value.trim());
+}
+
+function mapCustomerRecord(customer: CustomerRecord) {
+  const fallback = getFakeIdentity(customer.id);
+  return {
+    ...customer,
+    displayId: formatDisplayCustomerId(customer.id),
+    name: isPlaceholderIdentity(customer.name) ? fallback.name : customer.name,
+    email: isPlaceholderIdentity(customer.email) ? fallback.email : customer.email,
+  };
+}
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -105,25 +166,43 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getOverview() {
   return requestJson<{ success: boolean; data: OverviewResponse }>("/api/analytics").then(
-    (response) => response.data,
+    (response) => ({
+      ...response.data,
+      recentPredictions: response.data.recentPredictions.map(mapCustomerRecord),
+    }),
   );
 }
 
 export function getCustomers() {
   return requestJson<{ success: boolean; data: CustomerRecord[] }>("/api/customers").then(
-    (response) => response.data,
+    (response) => response.data.map(mapCustomerRecord),
   );
 }
 
 export function getModelMetrics() {
-  return requestJson<ModelMetricsResponse>("/api/metrics");
+  return requestJson<{ success: boolean; data: ModelMetricsResponse }>("/api/metrics").then(
+    (response) => response.data,
+  );
+}
+
+export function getModelInfo() {
+  return requestJson<{ success: boolean; data: NonNullable<ModelMetricsResponse["modelInfo"]> }>("/api/model-info").then(
+    (response) => response.data,
+  );
 }
 
 export function createPrediction(payload: PredictionPayload) {
-  return requestJson<PredictionResponse>("/api/predictions", {
+  return requestJson<{ success: boolean; data: { customerId: string; churnProbability: number; riskLevel: "High" | "Medium" | "Low"; churnPrediction: boolean; predictionDate: string } }>("/api/predictions", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }).then((response) => ({
+    customerId: response.data.customerId,
+    displayId: formatDisplayCustomerId(response.data.customerId),
+    probability: response.data.churnProbability,
+    riskLevel: response.data.riskLevel,
+    prediction: response.data.churnPrediction,
+    timestamp: response.data.predictionDate,
+  }));
 }
 
 export async function uploadBatchPredictions(file: File) {
@@ -140,5 +219,37 @@ export async function uploadBatchPredictions(file: File) {
     throw new Error(message || `Upload failed with status ${response.status}`);
   }
 
-  return (await response.json()) as BatchPredictionRow[];
+  const payload = (await response.json()) as {
+    success: boolean;
+    data: {
+      csvContent?: string;
+      results: Array<{
+        customerId: string;
+        name?: string;
+        email?: string;
+        tenure: number;
+        monthlyCharges: number;
+        churnProbability: number;
+        riskLevel: string;
+        churnPrediction: boolean;
+        predictionDate?: string;
+      }>;
+    };
+  };
+
+  return {
+    rows: payload.data.results.map((row) => ({
+      id: row.customerId,
+      displayId: formatDisplayCustomerId(row.customerId),
+      customerName: row.name,
+      email: row.email,
+      tenure: row.tenure,
+      monthlyCharges: row.monthlyCharges,
+      probability: row.churnProbability,
+      riskLevel: row.riskLevel,
+      prediction: row.churnPrediction,
+      timestamp: row.predictionDate,
+    })),
+    csvContent: payload.data.csvContent ?? "",
+  } satisfies BatchPredictionResponse;
 }

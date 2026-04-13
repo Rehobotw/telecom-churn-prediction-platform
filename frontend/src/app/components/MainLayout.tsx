@@ -1,16 +1,22 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Target, Users, BarChart3, Settings, LogOut } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { clearAuthenticatedSession, getAuthenticatedSession, isAuthenticated } from "../lib/auth";
 
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
+  const [sessionEmail, setSessionEmail] = useState("");
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("churn-insights-auth");
-    if (!isAuthenticated) {
+    if (!isAuthenticated()) {
       navigate("/login");
+      return;
     }
+
+    setSessionEmail(getAuthenticatedSession()?.email ?? "");
+    setAuthReady(true);
   }, [navigate]);
 
   const navItems = [
@@ -22,9 +28,13 @@ export function MainLayout() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("churn-insights-auth");
+    clearAuthenticatedSession();
     navigate("/login");
   };
+
+  if (!authReady) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-[#F9FAFB]">
@@ -33,6 +43,12 @@ export function MainLayout() {
         <div className="p-6 border-b border-[#E5E7EB]">
           <h1 className="font-semibold text-xl text-gray-900">Churn Insights</h1>
           <p className="text-sm text-gray-500 mt-1">Telecom Analytics</p>
+          <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+              Signed In
+            </div>
+            <div className="mt-1 text-sm font-medium text-gray-900">{sessionEmail || "--"}</div>
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">

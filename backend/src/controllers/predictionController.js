@@ -5,28 +5,25 @@ const { v4: uuidv4 } = require('uuid');
 const predictChurn = async (req, res, next) => {
   try {
     const customerData = req.body;
-
-    // Call ML service
     const mlResult = await mlService.predictCustomer(customerData);
-    /*const mlResult = {
-  churnProbability: 0.82,
-  churnPrediction: true
-};*/
-
-    // Determine risk level
-    const riskLevel = mlResult.churnProbability > 0.7 ? 'High' : mlResult.churnProbability > 0.4 ? 'Medium' : 'Low';
-
-    // Prepare response data
+    const customerId = uuidv4();
     const responseData = {
-      customerId: uuidv4(),
+      id: customerId,
+      customerId,
+      name: customerData.customerName || customerData.name || 'Unknown',
+      email: customerData.email || '',
+      tenure: Number(customerData.tenure),
+      monthlyCharges: Number(customerData.monthlyCharges),
+      contractType: customerData.contractType,
+      internetService: customerData.internetService,
+      paymentMethod: customerData.paymentMethod,
       churnProbability: mlResult.churnProbability,
       churnPrediction: mlResult.churnPrediction,
-      riskLevel,
-      timestamp: new Date().toISOString(),
-      customerData,
+      riskLevel: mlResult.riskLevel,
+      predictionDate: new Date().toISOString(),
+      customerData: { ...customerData },
     };
 
-    // Save to storage
     await customerService.saveCustomer(responseData);
 
     res.json({

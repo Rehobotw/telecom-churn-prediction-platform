@@ -1,5 +1,16 @@
 import { useMemo, useState } from "react";
-import { Upload, Download, Loader2, X, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
+import {
+  Upload,
+  Download,
+  Loader2,
+  X,
+  AlertTriangle,
+  CheckCircle2,
+  RotateCcw,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldEllipsis,
+} from "lucide-react";
 import { toast } from "sonner";
 import { RiskBadge } from "../RiskBadge";
 import { Button } from "../ui/button";
@@ -16,6 +27,7 @@ import { getActionInsight, formatPercent, formatCurrency } from "../../lib/utils
 import {
   createPrediction,
   uploadBatchPredictions,
+  type BatchPredictionResponse,
   type BatchPredictionRow,
   type PredictionPayload,
   type PredictionResponse,
@@ -102,6 +114,7 @@ export function PredictionsPage() {
   const [batchResults, setBatchResults] = useState<BatchPredictionRow[]>([]);
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchError, setBatchError] = useState("");
+  const [batchCsvContent, setBatchCsvContent] = useState("");
 
   const filteredServiceOptions = useMemo(
     () =>
@@ -110,6 +123,22 @@ export function PredictionsPage() {
       ),
     [serviceSearch]
   );
+
+  const batchSummary = useMemo(() => {
+    const total = batchResults.length;
+    const high = batchResults.filter((result) => result.riskLevel === "High").length;
+    const medium = batchResults.filter((result) => result.riskLevel === "Medium").length;
+    const low = batchResults.filter((result) => result.riskLevel === "Low").length;
+
+    return {
+      total,
+      high,
+      medium,
+      low,
+      averageProbability:
+        total > 0 ? batchResults.reduce((sum, row) => sum + row.probability, 0) / total : 0,
+    };
+  }, [batchResults]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +180,8 @@ export function PredictionsPage() {
 
     // Identity fields are intentionally excluded from the model payload.
     const modelPayload: PredictionPayload = {
+      customerName: formData.customerName.trim(),
+      email: formData.email.trim(),
       gender: formData.gender as ModelFeaturePayload["gender"],
       dependents: formData.dependents,
       tenure,
@@ -192,6 +223,7 @@ export function PredictionsPage() {
     setUploadedFile(null);
     setBatchResults([]);
     setBatchError("");
+    setBatchCsvContent("");
   };
 
   const fieldError = (fieldName: string) => missingFields.includes(fieldName);
@@ -223,18 +255,57 @@ export function PredictionsPage() {
       setIsBatchUploading(true);
 
       try {
-        const results = await uploadBatchPredictions(file);
-        setBatchResults(results);
+        const response = (await uploadBatchPredictions(file)) as BatchPredictionResponse;
+        setBatchResults(response.rows);
+        setBatchCsvContent(response.csvContent);
+        toast.success("Batch prediction completed. Use Download CSV when you want the file.");
       } catch {
         const message = "Unable to process batch file from backend.";
         setBatchResults([]);
         setBatchError(message);
+        setBatchCsvContent("");
         toast.error(`Error: ${message}`);
       } finally {
         setIsBatchUploading(false);
       }
     }
   };
+
+  const downloadBatchCsv = (csvContent: string, sourceName = "batch-predictions") => {
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sourceName}-results.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const batchRiskGuidance = [
+    {
+      level: "High",
+      icon: ShieldAlert,
+      accent: "border-red-200 bg-red-50 text-red-900",
+      description: "Prioritize immediate outreach, save offers, and manager review within 24 hours.",
+      count: batchSummary.high,
+    },
+    {
+      level: "Medium",
+      icon: ShieldEllipsis,
+      accent: "border-amber-200 bg-amber-50 text-amber-900",
+      description: "Queue proactive engagement and monitor payment, usage, or contract-change signals.",
+      count: batchSummary.medium,
+    },
+    {
+      level: "Low",
+      icon: ShieldCheck,
+      accent: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      description: "Keep in standard retention programs and re-score during the next review cycle.",
+      count: batchSummary.low,
+    },
+  ] as const;
 
   return (
     <div className="p-8 space-y-6">
@@ -659,10 +730,79 @@ export function PredictionsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-medium text-gray-900">Processed Results</h3>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-[#1A56FF] text-white rounded-lg hover:bg-[#0f3fb8] transition-colors">
+                    <button
+                      onClick={() =>
+                        downloadBatchCsv(
+                          batchCsvContent,
+                          uploadedFile?.name?.replace(/\.csv$/i, "") || "batch-predictions",
+                        )
+                      }
+                      disabled={!batchCsvContent}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#1A56FF] text-white rounded-lg hover:bg-[#0f3fb8] transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
                       <Download className="w-4 h-4" />
                       Download CSV
                     </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-[1.3fr,1fr] gap-4 mb-4">
+                    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">Batch Summary</h4>
+                          <p className="mt-1 text-sm text-gray-500">Operational distribution of predicted risk levels.</p>
+                        </div>
+                        <div className="rounded-full bg-[#E8F0FF] px-3 py-1 text-xs font-semibold text-[#1A56FF]">
+                          Avg risk {formatPercent(batchSummary.averageProbability)}
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-4 gap-3">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="text-xs uppercase tracking-[0.14em] text-gray-500">Total</div>
+                          <div className="mt-2 text-2xl font-semibold text-gray-900">{batchSummary.total}</div>
+                        </div>
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                          <div className="text-xs uppercase tracking-[0.14em] text-red-700">High</div>
+                          <div className="mt-2 text-2xl font-semibold text-red-900">{batchSummary.high}</div>
+                        </div>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <div className="text-xs uppercase tracking-[0.14em] text-amber-700">Medium</div>
+                          <div className="mt-2 text-2xl font-semibold text-amber-900">{batchSummary.medium}</div>
+                        </div>
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                          <div className="text-xs uppercase tracking-[0.14em] text-emerald-700">Low</div>
+                          <div className="mt-2 text-2xl font-semibold text-emerald-900">{batchSummary.low}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5">
+                      <h4 className="text-sm font-semibold text-gray-900">Risk Action Guide</h4>
+                      <p className="mt-1 text-sm text-gray-500">Professional handling guidance for the current batch.</p>
+                      <div className="mt-4 space-y-3">
+                        {batchRiskGuidance.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <div key={item.level} className={`rounded-lg border p-3 ${item.accent}`}>
+                              <div className="flex items-start gap-3">
+                                <div className="mt-0.5 rounded-md bg-white/60 p-2">
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold">{item.level} Risk</span>
+                                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
+                                      {item.count} customers
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-xs leading-5">{item.description}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="border border-[#E5E7EB] rounded-lg overflow-hidden">
@@ -670,6 +810,7 @@ export function PredictionsPage() {
                       <thead className="bg-gray-50 border-b border-[#E5E7EB]">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer ID</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenure</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monthly Charges</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Probability</th>
@@ -680,6 +821,10 @@ export function PredictionsPage() {
                         {batchResults.map((result) => (
                           <tr key={result.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 text-sm text-gray-900">{result.id}</td>
+                            <td className="px-6 py-4 text-sm text-gray-600">
+                              <div className="font-medium text-gray-900">{result.customerName || result.displayId}</div>
+                              <div className="text-xs text-gray-500">{result.email || "No email provided"}</div>
+                            </td>
                             <td className="px-6 py-4 text-sm text-gray-600">{result.tenure} months</td>
                             <td className="px-6 py-4 text-sm text-gray-600">{formatCurrency(result.monthlyCharges)}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">{formatPercent(result.probability)}</td>

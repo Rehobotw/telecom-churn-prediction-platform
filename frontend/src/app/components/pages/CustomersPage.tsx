@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Search, Filter, Loader2, AlertTriangle } from "lucide-react";
 import { RiskBadge } from "../RiskBadge";
 import { formatPercent, formatCurrency } from "../../lib/utils";
@@ -11,6 +11,7 @@ export function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
     let isMounted = true;
@@ -41,15 +42,20 @@ export function CustomersPage() {
     };
   }, []);
 
-  const filteredCustomers = (Array.isArray(customers) ? customers : []).filter((customer) => {
-    const matchesSearch =
-      customer.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRisk = !riskFilter || customer.riskLevel === riskFilter;
-    const matchesContract = !contractFilter || customer.contractType === contractFilter;
-    return matchesSearch && matchesRisk && matchesContract;
-  });
+  const filteredCustomers = useMemo(() => {
+    const normalizedSearch = deferredSearchQuery.trim().toLowerCase();
+
+    return (Array.isArray(customers) ? customers : []).filter((customer) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        customer.displayId.toLowerCase().includes(normalizedSearch) ||
+        customer.name.toLowerCase().includes(normalizedSearch) ||
+        customer.email.toLowerCase().includes(normalizedSearch);
+      const matchesRisk = !riskFilter || customer.riskLevel === riskFilter;
+      const matchesContract = !contractFilter || customer.contractType === contractFilter;
+      return matchesSearch && matchesRisk && matchesContract;
+    });
+  }, [customers, contractFilter, deferredSearchQuery, riskFilter]);
 
   return (
     <div className="p-8 space-y-6">
@@ -133,13 +139,12 @@ export function CustomersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Churn Probability</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Level</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prediction Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB]">
               {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{customer.id}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{customer.displayId}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{customer.name}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{customer.email}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{customer.tenure} months</td>
@@ -149,7 +154,6 @@ export function CustomersPage() {
                   <td className="px-6 py-4">
                     <RiskBadge riskLevel={customer.riskLevel} />
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{customer.predictionDate}</td>
                 </tr>
               ))}
             </tbody>

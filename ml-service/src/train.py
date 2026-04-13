@@ -8,140 +8,174 @@ import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, roc_auc_score
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
 
 from .config import (
-	FEATURE_IMPORTANCE_PATH,
-	MODEL_METADATA_PATH,
-	MODEL_PATH,
-	MODELS_DIR,
-	RAW_DATA_PATH,
-	RANDOM_STATE,
-	TARGET_COLUMN,
-	TEST_SIZE,
+    FEATURE_IMPORTANCE_PATH,
+    MODEL_METADATA_PATH,
+    MODEL_PATH,
+    MODELS_DIR,
+    PREPROCESSOR_PATH,
+    PROCESSED_DATA_PATH,
+    RANDOM_STATE,
+    RAW_DATA_PATH,
+    TARGET_COLUMN,
+    TEST_SIZE,
 )
-from .preprocessing import fit_transform_data, load_dataset, save_preprocessor, split_features_target
+from .preprocessing import preprocess_dataset, split_features_target
+
+LOGISTIC_BASELINE_PATH = MODELS_DIR / "logistic_regression_baseline.pkl"
+RANDOM_FOREST_BASELINE_PATH = MODELS_DIR / "random_forest_baseline.pkl"
 
 
-def _train_candidates(X_train_transformed, y_train: pd.Series) -> Dict[str, GridSearchCV]:
-	candidates = {
-		"logistic_regression": GridSearchCV(
-			estimator=LogisticRegression(max_iter=1000, random_state=RANDOM_STATE),
-			param_grid={
-				"C": [0.1, 1.0, 10.0],
-				"solver": ["lbfgs"],
-				"class_weight": [None, "balanced"],
-			},
-			scoring="roc_auc",
-			cv=3,
-			n_jobs=-1,
-			refit=True,
-		),
-		"random_forest": GridSearchCV(
-			estimator=RandomForestClassifier(random_state=RANDOM_STATE),
-			param_grid={
-				"n_estimators": [200, 300],
-				"max_depth": [None, 10, 20],
-				"min_samples_split": [2, 5],
-				"class_weight": [None, "balanced"],
-			},
-			scoring="roc_auc",
-			cv=3,
-			n_jobs=-1,
-			refit=True,
-		),
-	}
-
-	for grid in candidates.values():
-		grid.fit(X_train_transformed, y_train)
-
-	return candidates
+def _get_train_test_data(processed_df: pd.DataFrame):
+    X, y = split_features_target(processed_df, target_column=TARGET_COLUMN)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=TEST_SIZE,
+        random_state=RANDOM_STATE,
+        stratify=y,
+    )
+    return X, y, X_train, X_test, y_train, y_test
 
 
-def _select_best_model(candidates: Dict[str, GridSearchCV], X_val_transformed, y_val: pd.Series) -> tuple[str, Any, Dict[str, float]]:
-	ranking = []
-	for name, grid in candidates.items():
-		model = grid.best_estimator_
-		y_prob = model.predict_proba(X_val_transformed)[:, 1]
-		y_pred = (y_prob >= 0.5).astype(int)
-		ranking.append(
-			{
-				"name": name,
-				"model": model,
-				"roc_auc": float(roc_auc_score(y_val, y_prob)),
-				"f1": float(f1_score(y_val, y_pred)),
-			}
-		)
+def _train_logistic_regression(X_train: pd.DataFrame, y_train: pd.Series) -> LogisticRegression:
+    log_model = LogisticRegression(
+        max_iter=1000,
+        random_state=RANDOM_STATE,
+        class_weight="balanced",
+    )
+    param_grid = {
+        "C": [0.001, 0.01, 0.1, 1, 10, 100],
+        "penalty": ["l1", "l2"],
+        "solver": ["liblinear", "saga"],
+    }
+    grid_search = GridSearchCV(
+        estimator=log_model,
+        param_grid=param_grid,
+        cv=5,
+        scoring="f1",
+        n_jobs=-1,
+        verbose=0,
+    )
+    grid_search.fit(X_train, y_train)
+    return grid_search.best_estimator_
 
-	ranking.sort(key=lambda item: (item["roc_auc"], item["f1"]), reverse=True)
-	best = ranking[0]
-	return best["name"], best["model"], {"roc_auc": best["roc_auc"], "f1": best["f1"]}
+
+def _train_random_forest(X_train: pd.DataFrame, y_train: pd.Series) -> RandomForestClassifier:
+    rf_model = RandomForestClassifier(
+        random_state=RANDOM_STATE,
+        class_weight="balanced",
+    )
+    param_dist = {
+        "n_estimators": [100, 200, 300, 500],
+        "max_depth": [None, 10, 20, 30, 40],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
+        "max_features": ["sqrt", "log2"],
+    }
+    search = RandomizedSearchCV(
+        estimator=rf_model,
+        param_distributions=param_dist,
+        n_iter=25,
+        cv=5,
+        scoring="f1",
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+        verbose=0,
+    )
+    search.fit(X_train, y_train)
+    return search.best_estimator_
+
+
+def _evaluate_model(model: Any, X_test: pd.DataFrame, y_test: pd.Series) -> dict[str, float]:
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
+    return {
+        "accuracy": float(accuracy_score(y_test, y_pred)),
+        "precision": float(precision_score(y_test, y_pred, zero_division=0)),
+        "recall": float(recall_score(y_test, y_pred, zero_division=0)),
+        "f1": float(f1_score(y_test, y_pred, zero_division=0)),
+        "roc_auc": float(roc_auc_score(y_test, y_prob)),
+    }
 
 
 def _save_feature_importance(model: Any, feature_names: list[str]) -> None:
-	if hasattr(model, "feature_importances_"):
-		values = model.feature_importances_
-	elif hasattr(model, "coef_"):
-		values = abs(model.coef_[0])
-	else:
-		values = [0.0 for _ in feature_names]
+    if hasattr(model, "feature_importances_"):
+        values = model.feature_importances_
+    elif hasattr(model, "coef_"):
+        values = abs(model.coef_[0])
+    else:
+        values = [0.0 for _ in feature_names]
 
-	ranked = sorted(
-		[
-			{"feature": feature, "importance": float(importance)}
-			for feature, importance in zip(feature_names, values)
-		],
-		key=lambda item: item["importance"],
-		reverse=True,
-	)
-
-	FEATURE_IMPORTANCE_PATH.parent.mkdir(parents=True, exist_ok=True)
-	FEATURE_IMPORTANCE_PATH.write_text(json.dumps(ranked, indent=2), encoding="utf-8")
+    ranked = sorted(
+        [
+            {"feature": feature, "importance": float(importance)}
+            for feature, importance in zip(feature_names, values)
+        ],
+        key=lambda item: item["importance"],
+        reverse=True,
+    )
+    FEATURE_IMPORTANCE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FEATURE_IMPORTANCE_PATH.write_text(json.dumps(ranked, indent=2), encoding="utf-8")
 
 
 def train_and_save(raw_data_path: Path | str = RAW_DATA_PATH) -> Dict[str, Any]:
-	df = load_dataset(raw_data_path)
-	X, y = split_features_target(df, target_column=TARGET_COLUMN)
+    processed_df, preprocessor = preprocess_dataset(raw_data_path=raw_data_path)
+    X, _, X_train, X_test, y_train, y_test = _get_train_test_data(processed_df)
 
-	X_train, X_test, y_train, y_test = train_test_split(
-		X,
-		y,
-		test_size=TEST_SIZE,
-		random_state=RANDOM_STATE,
-		stratify=y,
-	)
+    logistic_model = _train_logistic_regression(X_train, y_train)
+    random_forest_model = _train_random_forest(X_train, y_train)
 
-	preprocessor, X_train_transformed, X_test_transformed = fit_transform_data(X_train, X_test)
-	candidates = _train_candidates(X_train_transformed, y_train)
-	model_name, best_model, scores = _select_best_model(candidates, X_test_transformed, y_test)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(logistic_model, LOGISTIC_BASELINE_PATH)
+    joblib.dump(random_forest_model, RANDOM_FOREST_BASELINE_PATH)
 
-	MODELS_DIR.mkdir(parents=True, exist_ok=True)
-	joblib.dump(best_model, MODEL_PATH)
-	save_preprocessor(preprocessor)
+    comparison = {
+        "logistic_regression": _evaluate_model(logistic_model, X_test, y_test),
+        "random_forest": _evaluate_model(random_forest_model, X_test, y_test),
+    }
+    selected_model_name = max(
+        comparison,
+        key=lambda model_name: comparison[model_name]["roc_auc"],
+    )
+    selected_model = (
+        random_forest_model
+        if selected_model_name == "random_forest"
+        else logistic_model
+    )
 
-	feature_names = preprocessor.get_feature_names_out().tolist()
-	_save_feature_importance(best_model, feature_names)
+    joblib.dump(selected_model, MODEL_PATH)
+    _save_feature_importance(selected_model, X.columns.tolist())
 
-	MODEL_METADATA_PATH.write_text(
-		json.dumps(
-			{
-				"selected_model": model_name,
-				"test_scores": scores,
-				"feature_columns": preprocessor.feature_names_in_.tolist(),
-			},
-			indent=2,
-		),
-		encoding="utf-8",
-	)
+    MODEL_METADATA_PATH.write_text(
+        json.dumps(
+            {
+                "selected_model": selected_model_name,
+                "comparison_metrics": comparison,
+                "test_scores": comparison[selected_model_name],
+                "feature_columns": X.columns.tolist(),
+                "processed_data_path": str(PROCESSED_DATA_PATH),
+                "logistic_regression_path": str(LOGISTIC_BASELINE_PATH),
+                "random_forest_path": str(RANDOM_FOREST_BASELINE_PATH),
+                "model_path": str(MODEL_PATH),
+                "preprocessor_path": str(PREPROCESSOR_PATH),
+                "raw_feature_columns": preprocessor.feature_names_in_,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
-	return {
-		"selected_model": model_name,
-		"test_scores": scores,
-		"model_path": str(MODEL_PATH),
-	}
+    return {
+        "selected_model": selected_model_name,
+        "comparison_metrics": comparison,
+        "model_path": str(MODEL_PATH),
+        "processed_data_path": str(PROCESSED_DATA_PATH),
+    }
 
 
 if __name__ == "__main__":
-	print(train_and_save())
-
+    print(train_and_save())

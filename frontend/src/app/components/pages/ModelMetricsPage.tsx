@@ -1,10 +1,26 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Activity, Target, TrendingUp, Award, BarChart3, Loader2, AlertTriangle } from "lucide-react";
-import { getModelMetrics, type ModelMetricsResponse } from "../../lib/api";
+import { getModelInfo, getModelMetrics, type ModelMetricsResponse } from "../../lib/api";
+
+function formatModelType(modelType?: string) {
+  if (!modelType) return "--";
+  return modelType
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatLastTrained(value?: string) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
 
 export function ModelMetricsPage() {
   const [modelMetrics, setModelMetrics] = useState<ModelMetricsResponse | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelMetricsResponse["modelInfo"] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -13,15 +29,20 @@ export function ModelMetricsPage() {
 
     const loadMetrics = async () => {
       try {
-        const data = await getModelMetrics();
+        const metricsData = await getModelMetrics();
+        const modelInfoResult = await getModelInfo()
+          .then((data) => ({ ok: true as const, data }))
+          .catch(() => ({ ok: false as const, data: null }));
         if (isMounted) {
-          setModelMetrics(data);
+          setModelMetrics(metricsData);
+          setModelInfo(modelInfoResult.ok ? modelInfoResult.data : null);
           setError("");
         }
       } catch {
         if (isMounted) {
           setError("Unable to load model metrics from backend.");
           setModelMetrics(null);
+          setModelInfo(null);
         }
       } finally {
         if (isMounted) {
@@ -160,21 +181,29 @@ export function ModelMetricsPage() {
             <LineChart data={rocData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis
+                type="number"
                 dataKey="fpr"
+                domain={[0, 1]}
                 stroke="#6B7280"
                 fontSize={12}
+                tickFormatter={(value) => Number(value).toFixed(1)}
                 label={{ value: "False Positive Rate", position: "insideBottom", offset: -5 }}
               />
               <YAxis
+                type="number"
+                domain={[0, 1]}
                 stroke="#6B7280"
                 fontSize={12}
+                tickFormatter={(value) => Number(value).toFixed(1)}
                 label={{ value: "True Positive Rate", angle: -90, position: "insideLeft" }}
               />
               <Tooltip
+                formatter={(value: number, name: string) => [value.toFixed(4), name]}
+                labelFormatter={(value) => `FPR: ${Number(value).toFixed(4)}`}
                 contentStyle={{ backgroundColor: "white", border: "1px solid #E5E7EB", borderRadius: "8px" }}
               />
-              <Line type="monotone" dataKey="tpr" stroke="#1A56FF" strokeWidth={2} dot={false} name="ROC Curve" />
-              <Line type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeWidth={1} strokeDasharray="5 5" dot={false} name="Random" />
+              <Line type="stepAfter" dataKey="tpr" stroke="#1A56FF" strokeWidth={2} dot={false} name="ROC Curve" isAnimationActive={false} />
+              <Line type="linear" dataKey="baseline" stroke="#9CA3AF" strokeWidth={1} strokeDasharray="5 5" dot={false} name="Random Baseline" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -185,30 +214,28 @@ export function ModelMetricsPage() {
           <h3 className="text-base font-semibold text-gray-900 mb-4">Model Information</h3>
           <div className="grid grid-cols-2 gap-y-3 text-sm">
             <div className="text-gray-500">Model Type</div>
-            <div className="text-gray-900 font-medium">{modelMetrics?.modelInfo?.modelType ?? "--"}</div>
+            <div className="text-gray-900 font-medium">{formatModelType(modelInfo?.modelType ?? modelMetrics?.modelInfo?.modelType)}</div>
 
             <div className="text-gray-500">Last Trained</div>
-            <div className="text-gray-900 font-medium">{modelMetrics?.modelInfo?.lastTrained ?? "--"}</div>
+            <div className="text-gray-900 font-medium">{formatLastTrained(modelInfo?.lastTrained ?? modelMetrics?.modelInfo?.lastTrained)}</div>
 
             <div className="text-gray-500">Training Samples</div>
             <div className="text-gray-900 font-medium">
-              {typeof modelMetrics?.modelInfo?.trainingSamples === "number"
-                ? modelMetrics.modelInfo.trainingSamples.toLocaleString()
+              {typeof (modelInfo?.trainingSamples ?? modelMetrics?.modelInfo?.trainingSamples) === "number"
+                ? (modelInfo?.trainingSamples ?? modelMetrics?.modelInfo?.trainingSamples)?.toLocaleString()
                 : "--"}
             </div>
 
             <div className="text-gray-500">Features Used</div>
-            <div className="text-gray-900 font-medium">{modelMetrics?.modelInfo?.featuresUsed ?? "--"}</div>
+            <div className="text-gray-900 font-medium">
+              {typeof (modelInfo?.featuresUsed ?? modelMetrics?.modelInfo?.featuresUsed) === "number"
+                ? (modelInfo?.featuresUsed ?? modelMetrics?.modelInfo?.featuresUsed)?.toLocaleString()
+                : "--"}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <p className="text-sm text-blue-900">
-          <span className="font-medium">Note:</span> If the prediction threshold is changed in Settings, the displayed risk
-          labels may change, even if the model itself stays the same.
-        </p>
-      </div>
     </div>
   );
 }

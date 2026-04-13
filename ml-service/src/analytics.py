@@ -4,15 +4,58 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
+import joblib
 import pandas as pd
 
-from .config import FEATURE_IMPORTANCE_PATH, RAW_DATA_PATH, TARGET_COLUMN
+from .config import MODEL_METADATA_PATH, MODEL_PATH, RAW_DATA_PATH, TARGET_COLUMN
 
 
 def _load_feature_importance() -> List[Dict[str, Any]]:
-    if not Path(FEATURE_IMPORTANCE_PATH).exists():
+    metadata_path = Path(MODEL_METADATA_PATH)
+    if not metadata_path.exists():
         return []
-    return json.loads(Path(FEATURE_IMPORTANCE_PATH).read_text(encoding="utf-8"))
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    selected_model = metadata.get("selected_model")
+    feature_names = metadata.get("feature_columns", [])
+
+    if selected_model == "logistic_regression":
+        model_path = metadata.get("logistic_regression_path")
+    elif selected_model == "random_forest":
+        model_path = metadata.get("random_forest_path")
+    else:
+        model_path = metadata.get("model_path") or str(MODEL_PATH)
+
+    if not model_path or not Path(model_path).exists():
+        return []
+
+    model = joblib.load(model_path)
+    if hasattr(model, "feature_importances_"):
+        raw_values = list(model.feature_importances_)
+    elif hasattr(model, "coef_"):
+        raw_values = [abs(float(value)) for value in model.coef_[0]]
+    else:
+        return []
+
+    if not feature_names:
+        feature_names = [f"feature_{index + 1}" for index in range(len(raw_values))]
+
+    total_importance = sum(raw_values)
+    normalized_values = (
+        [value / total_importance for value in raw_values]
+        if total_importance > 0
+        else [0.0 for _ in raw_values]
+    )
+
+    ranked = sorted(
+        [
+            {"feature": feature, "importance": float(importance)}
+            for feature, importance in zip(feature_names, normalized_values)
+        ],
+        key=lambda item: item["importance"],
+        reverse=True,
+    )
+    return ranked
 
 
 def _infer_churn_series(df: pd.DataFrame) -> pd.Series:
@@ -65,4 +108,7 @@ def get_analytics_data(data_path: Path | str = RAW_DATA_PATH, predictions_today:
         "predictions_today": int(predictions_today if predictions_today is not None else total_customers),
         "trend": _build_trend(df, churn),
         "feature_importance": _load_feature_importance(),
+        "selected_model": json.loads(Path(MODEL_METADATA_PATH).read_text(encoding="utf-8")).get("selected_model")
+        if Path(MODEL_METADATA_PATH).exists()
+        else None,
     }

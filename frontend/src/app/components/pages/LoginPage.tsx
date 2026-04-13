@@ -1,19 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, AlertTriangle } from "lucide-react";
+import { authenticate, isAuthenticated, setAuthenticatedSession } from "../../lib/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const rememberedEmail = window.localStorage.getItem("churn-insights-remember-email");
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate("/");
+    }
+  }, [navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      localStorage.setItem("churn-insights-auth", "true");
+    if (authenticate(email, password)) {
+      setAuthenticatedSession(email.trim().toLowerCase());
+      if (rememberMe) {
+        window.localStorage.setItem("churn-insights-remember-email", email.trim().toLowerCase());
+      } else {
+        window.localStorage.removeItem("churn-insights-remember-email");
+      }
+      setError("");
       navigate("/");
+      return;
     }
+
+    setError("Invalid email or password. Use the configured admin credentials.");
   };
 
   return (
@@ -26,6 +51,11 @@ export function LoginPage() {
             </div>
             <h1 className="font-semibold text-2xl text-gray-900">Churn Insights</h1>
             <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+            <div className="mt-4 w-full rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-left">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Demo Access</div>
+              <div className="mt-2 text-sm text-blue-950">Email: admin@gmail.com</div>
+              <div className="text-sm text-blue-950">Password: admin123</div>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -58,6 +88,13 @@ export function LoginPage() {
                 required
               />
             </div>
+
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700 flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">

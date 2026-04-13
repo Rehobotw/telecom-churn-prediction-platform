@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from .config import METRICS_PATH
+from .model_info import get_model_info
 
 
 def get_metrics() -> Dict[str, Any]:
@@ -20,4 +21,5 @@ def get_metrics() -> Dict[str, Any]:
         "roc_auc": payload.get("roc_auc"),
         "confusion_matrix": payload.get("confusion_matrix", []),
         "roc_curve": payload.get("roc_curve", {"fpr": [], "tpr": []}),
+        "model_info": get_model_info(),
     }

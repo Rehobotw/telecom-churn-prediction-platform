@@ -23,14 +23,11 @@ def get_train_test_split(
         stratify=y,
     )
 
+    train_df = X_train.copy()
+    test_df = X_test.copy()
     if include_target:
-        train_df = X_train.copy()
         train_df[TARGET_COLUMN] = y_train.values
-        test_df = X_test.copy()
         test_df[TARGET_COLUMN] = y_test.values
-    else:
-        train_df = X_train.copy()
-        test_df = X_test.copy()
 
     if limit is not None:
         train_df = train_df.head(limit)
@@ -43,6 +40,7 @@ def get_train_test_split(
             "random_state": RANDOM_STATE,
             "test_size": TEST_SIZE,
             "stratified": True,
+            "dataset": str(PROCESSED_DATA_PATH),
         },
         "train": {
             "rows": int(len(X_train)),

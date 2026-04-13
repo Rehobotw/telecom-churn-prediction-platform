@@ -1,6 +1,5 @@
 const fs = require('fs');
 const csv = require('csv-parser');
-const { createObjectCsvWriter } = require('csv-writer');
 
 const parseCSV = (filePath) => {
   return new Promise((resolve, reject) => {
@@ -13,18 +12,28 @@ const parseCSV = (filePath) => {
   });
 };
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const normalized = String(value);
+  if (/[",\n]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+};
+
 const generateCSV = (data) => {
   if (!data || data.length === 0) return '';
 
-  const headers = Object.keys(data[0]).map(key => ({ id: key, title: key }));
+  const headers = Object.keys(data[0]);
+  const headerRow = headers.join(',');
+  const rows = data.map((row) =>
+    headers.map((key) => escapeCsvValue(row[key])).join(',')
+  );
 
-  const csvWriter = createObjectCsvWriter({
-    path: 'temp.csv',
-    header: headers,
-  });
-
-  // For now, return as string, but in production, might want to stream
-  return data.map(row => Object.values(row).join(',')).join('\n');
+  return [headerRow, ...rows].join('\n');
 };
 
 module.exports = {

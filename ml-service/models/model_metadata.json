@@ -1,28 +1,66 @@
 {
-  "selected_model": "logistic_regression",
+  "selected_model": "random_forest",
+  "comparison_metrics": {
+    "logistic_regression": {
+      "accuracy": 0.7352732434350603,
+      "precision": 0.5008605851979346,
+      "recall": 0.7780748663101604,
+      "f1": 0.6094240837696335,
+      "roc_auc": 0.8409452582086853
+    },
+    "random_forest": {
+      "accuracy": 0.7601135557132718,
+      "precision": 0.5339622641509434,
+      "recall": 0.7566844919786097,
+      "f1": 0.6261061946902655,
+      "roc_auc": 0.8424268258027849
+    }
+  },
   "test_scores": {
-    "roc_auc": 0.8411558035598958,
-    "f1": 0.6040462427745664
+    "accuracy": 0.7601135557132718,
+    "precision": 0.5339622641509434,
+    "recall": 0.7566844919786097,
+    "f1": 0.6261061946902655,
+    "roc_auc": 0.8424268258027849
   },
   "feature_columns": [
+    "tenure",
+    "MonthlyCharges",
+    "num_services",
+    "gender_Male",
+    "Dependents_Yes",
+    "PhoneService_Yes",
+    "InternetService_Fiber optic",
+    "InternetService_No",
+    "Contract_One year",
+    "Contract_Two year",
+    "PaperlessBilling_Yes",
+    "PaymentMethod_Credit card (automatic)",
+    "PaymentMethod_Electronic check",
+    "PaymentMethod_Mailed check",
+    "charge_level_medium",
+    "charge_level_high",
+    "tenure_group_early",
+    "tenure_group_established",
+    "tenure_group_loyal"
+  ],
+  "processed_data_path": "/home/rehobot/Documents/Projects/telecom-churn-prediction-platform/data/processed/telecom_churn_clean.csv",
+  "logistic_regression_path": "/home/rehobot/Documents/Projects/telecom-churn-prediction-platform/ml-service/models/logistic_regression_baseline.pkl",
+  "random_forest_path": "/home/rehobot/Documents/Projects/telecom-churn-prediction-platform/ml-service/models/random_forest_baseline.pkl",
+  "model_path": "/home/rehobot/Documents/Projects/telecom-churn-prediction-platform/ml-service/models/final_model.pkl",
+  "preprocessor_path": "/home/rehobot/Documents/Projects/telecom-churn-prediction-platform/ml-service/models/preprocessor.pkl",
+  "raw_feature_columns": [
     "gender",
-    "SeniorCitizen",
-    "Partner",
     "Dependents",
     "tenure",
     "PhoneService",
-    "MultipleLines",
     "InternetService",
-    "OnlineSecurity",
-    "OnlineBackup",
-    "DeviceProtection",
-    "TechSupport",
-    "StreamingTV",
-    "StreamingMovies",
     "Contract",
     "PaperlessBilling",
     "PaymentMethod",
     "MonthlyCharges",
-    "TotalCharges"
+    "num_services",
+    "tenure_group",
+    "charge_level"
   ]
 }

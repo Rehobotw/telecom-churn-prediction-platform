@@ -42,6 +42,9 @@ export function OverviewPage() {
   const trendData = overview?.trendData ?? [];
   const featureImportance = overview?.featureImportance ?? [];
   const recentPredictions = overview?.recentPredictions ?? [];
+  const featureImportanceTitle = overview?.modelType
+    ? `Feature Importance (${overview.modelType})`
+    : "Feature Importance";
 
   return (
     <div className="p-8 space-y-6">
@@ -144,7 +147,7 @@ export function OverviewPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
-          <h3 className="font-medium text-gray-900 mb-4">Feature Importance</h3>
+          <h3 className="font-medium text-gray-900 mb-4">{featureImportanceTitle}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={featureImportance} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -180,7 +183,7 @@ export function OverviewPage() {
             <tbody className="divide-y divide-[#E5E7EB]">
               {recentPredictions.map((customer) => (
                 <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-900">{customer.id}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{customer.displayId}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{customer.name}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{customer.tenure} months</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{formatCurrency(customer.monthlyCharges)}</td>

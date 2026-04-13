@@ -1,127 +1,184 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 import joblib
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 
-from .config import IGNORE_COLUMNS, PREPROCESSOR_PATH, TARGET_COLUMN
+from .config import PREPROCESSOR_PATH, PROCESSED_DATA_PATH, RAW_DATA_PATH, TARGET_COLUMN
+
+DROP_COLUMNS = ["customerID", "TotalCharges", "MultipleLines", "SeniorCitizen", "Partner"]
+SERVICE_COLUMNS = [
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+]
+CATEGORICAL_COLUMNS = [
+    "gender",
+    "Dependents",
+    "PhoneService",
+    "InternetService",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod",
+    "charge_level",
+    "tenure_group",
+]
+NUMERIC_COLUMNS = ["tenure", "MonthlyCharges", "num_services"]
+TENURE_BINS = [0, 12, 24, 48, 72]
+TENURE_LABELS = ["new", "early", "established", "loyal"]
+CHARGE_BINS = [0, 40, 80, 120]
+CHARGE_LABELS = ["low", "medium", "high"]
+
+
+@dataclass
+class NotebookPreprocessor:
+    raw_feature_columns: list[str]
+    processed_feature_columns: list[str]
+    scaler: StandardScaler
+
+    @property
+    def feature_names_in_(self) -> list[str]:
+        return self.raw_feature_columns
+
+    def get_feature_names_out(self) -> list[str]:
+        return self.processed_feature_columns
 
 
 def load_dataset(path: Path | str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def _normalize_target(y: pd.Series) -> pd.Series:
-    if y.dtype == object:
-        return y.map({"No": 0, "Yes": 1}).astype("int64")
-    return y.astype("int64")
+def _add_engineered_columns(df: pd.DataFrame) -> pd.DataFrame:
+    engineered = df.copy()
+    for column in SERVICE_COLUMNS:
+        if column not in engineered.columns:
+            engineered[column] = None
+    engineered["num_services"] = (engineered[SERVICE_COLUMNS] == "Yes").sum(axis=1)
+    engineered.drop(columns=SERVICE_COLUMNS, inplace=True, errors="ignore")
+    engineered["tenure_group"] = pd.cut(
+        engineered["tenure"],
+        bins=TENURE_BINS,
+        labels=TENURE_LABELS,
+    )
+    engineered["charge_level"] = pd.cut(
+        engineered["MonthlyCharges"],
+        bins=CHARGE_BINS,
+        labels=CHARGE_LABELS,
+    )
+    return engineered
 
 
-def _coerce_numeric_like_columns(X: pd.DataFrame, min_numeric_ratio: float = 0.9) -> pd.DataFrame:
-    X_out = X.copy()
-    object_columns = X_out.select_dtypes(include=["object"]).columns.tolist()
-
-    for column in object_columns:
-        converted = pd.to_numeric(X_out[column], errors="coerce")
-        ratio = float(converted.notna().mean()) if len(converted) else 0.0
-        if ratio >= min_numeric_ratio:
-            X_out[column] = converted
-
-    return X_out
+def _prepare_raw_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    prepared = df.copy()
+    prepared.drop(columns=DROP_COLUMNS, inplace=True, errors="ignore")
+    prepared = _add_engineered_columns(prepared)
+    if TARGET_COLUMN in prepared.columns and prepared[TARGET_COLUMN].dtype == object:
+        prepared[TARGET_COLUMN] = prepared[TARGET_COLUMN].map({"No": 0, "Yes": 1})
+    return prepared
 
 
-def split_features_target(df: pd.DataFrame, target_column: str = TARGET_COLUMN) -> Tuple[pd.DataFrame, pd.Series]:
+def _encode_features(df: pd.DataFrame) -> pd.DataFrame:
+    available_categorical = [column for column in CATEGORICAL_COLUMNS if column in df.columns]
+    return pd.get_dummies(df, columns=available_categorical, drop_first=True)
+
+
+def _align_processed_features(df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
+    aligned = df.copy()
+    for column in feature_columns:
+        if column not in aligned.columns:
+            aligned[column] = False
+    return aligned[feature_columns]
+
+
+def build_notebook_preprocessor(df: pd.DataFrame) -> tuple[NotebookPreprocessor, pd.DataFrame]:
+    prepared = _prepare_raw_dataframe(df)
+    raw_feature_columns = [column for column in prepared.columns if column != TARGET_COLUMN]
+
+    encoded = _encode_features(prepared)
+    processed_feature_columns = [column for column in encoded.columns if column != TARGET_COLUMN]
+
+    scaler = StandardScaler()
+    encoded[NUMERIC_COLUMNS] = scaler.fit_transform(encoded[NUMERIC_COLUMNS])
+
+    preprocessor = NotebookPreprocessor(
+        raw_feature_columns=raw_feature_columns,
+        processed_feature_columns=processed_feature_columns,
+        scaler=scaler,
+    )
+    return preprocessor, encoded
+
+
+def preprocess_dataset(
+    raw_data_path: Path | str = RAW_DATA_PATH,
+    processed_data_path: Path | str = PROCESSED_DATA_PATH,
+    preprocessor_path: Path | str = PREPROCESSOR_PATH,
+) -> tuple[pd.DataFrame, NotebookPreprocessor]:
+    df = load_dataset(raw_data_path)
+    preprocessor, processed_df = build_notebook_preprocessor(df)
+    Path(processed_data_path).parent.mkdir(parents=True, exist_ok=True)
+    processed_df.to_csv(processed_data_path, index=False)
+    save_preprocessor(preprocessor, preprocessor_path)
+    return processed_df, preprocessor
+
+
+def split_features_target(
+    df: pd.DataFrame,
+    target_column: str = TARGET_COLUMN,
+) -> Tuple[pd.DataFrame, pd.Series]:
     if target_column not in df.columns:
         raise ValueError(f"Target column '{target_column}' was not found.")
-
     X = df.drop(columns=[target_column], errors="ignore").copy()
-    y = _normalize_target(df[target_column])
-
-    for column in IGNORE_COLUMNS:
-        if column in X.columns:
-            X.drop(columns=[column], inplace=True)
-
-    X = _coerce_numeric_like_columns(X)
-
+    y = df[target_column].astype("int64")
     return X, y
-
-
-def infer_feature_types(X: pd.DataFrame) -> Tuple[List[str], List[str]]:
-    numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
-    categorical_columns = [c for c in X.columns if c not in numeric_columns]
-    return numeric_columns, categorical_columns
-
-
-def build_preprocessing_pipeline(X: pd.DataFrame) -> ColumnTransformer:
-    numeric_columns, categorical_columns = infer_feature_types(X)
-
-    numeric_pipeline = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-        ]
-    )
-    categorical_pipeline = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
-
-    return ColumnTransformer(
-        transformers=[
-            ("num", numeric_pipeline, numeric_columns),
-            ("cat", categorical_pipeline, categorical_columns),
-        ],
-        remainder="drop",
-    )
 
 
 def fit_transform_data(
     X_train: pd.DataFrame,
     X_test: pd.DataFrame | None = None,
-) -> Tuple[ColumnTransformer, object, object | None]:
-    preprocessor = build_preprocessing_pipeline(X_train)
-    X_train_transformed = preprocessor.fit_transform(X_train)
-
-    X_test_transformed = None
-    if X_test is not None:
-        X_test_transformed = preprocessor.transform(X_test)
-
-    return preprocessor, X_train_transformed, X_test_transformed
+) -> Tuple[NotebookPreprocessor, pd.DataFrame, pd.DataFrame | None]:
+    raise NotImplementedError(
+        "Notebook-based preprocessing is applied before train/test split. "
+        "Use preprocess_dataset() instead."
+    )
 
 
-def transform_data(preprocessor: ColumnTransformer, X: pd.DataFrame):
-    X_prepared = _coerce_numeric_like_columns(X)
-    expected_columns = list(preprocessor.feature_names_in_)
-    X_infer = X_prepared.copy()
-    for column in expected_columns:
-        if column not in X_infer.columns:
-            X_infer[column] = None
-    return preprocessor.transform(X_infer[expected_columns])
+def transform_data(preprocessor: NotebookPreprocessor, X: pd.DataFrame) -> pd.DataFrame:
+    prepared = _prepare_raw_dataframe(X)
+    encoded = _encode_features(prepared)
+    aligned = _align_processed_features(encoded, preprocessor.processed_feature_columns)
+    for column in NUMERIC_COLUMNS:
+        if column not in aligned.columns:
+            aligned[column] = 0.0
+    aligned[NUMERIC_COLUMNS] = preprocessor.scaler.transform(aligned[NUMERIC_COLUMNS])
+    return aligned
 
 
-def save_preprocessor(preprocessor: ColumnTransformer, path: Path | str = PREPROCESSOR_PATH) -> None:
+def save_preprocessor(
+    preprocessor: NotebookPreprocessor,
+    path: Path | str = PREPROCESSOR_PATH,
+) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(preprocessor, path)
 
 
-def load_preprocessor(path: Path | str = PREPROCESSOR_PATH) -> ColumnTransformer:
+def load_preprocessor(path: Path | str = PREPROCESSOR_PATH) -> NotebookPreprocessor:
     return joblib.load(path)
 
 
 __all__ = [
-    "build_preprocessing_pipeline",
+    "NotebookPreprocessor",
+    "build_notebook_preprocessor",
     "fit_transform_data",
-    "infer_feature_types",
     "load_dataset",
     "load_preprocessor",
+    "preprocess_dataset",
     "save_preprocessor",
     "split_features_target",
     "transform_data",

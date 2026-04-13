@@ -1,24 +1,46 @@
-import { useState } from "react";
-import { Bell, Settings as SettingsIcon, Shield, Eye, EyeOff, Mail, Check, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Shield, Eye, EyeOff, Mail, Check, X, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  getStoredProfile,
+  updateAccountEmail,
+  updateAccountPassword,
+  updateAccountPreferences,
+} from "../../lib/auth";
 
 export function SettingsPage() {
   const [highRiskAlerts, setHighRiskAlerts] = useState(true);
   const [dailyReports, setDailyReports] = useState(false);
-  const [threshold, setThreshold] = useState(50);
-  const [autoRetrain, setAutoRetrain] = useState("Monthly");
+  const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
+  const [notificationEmailInput, setNotificationEmailInput] = useState("");
 
-  // Account Identity
-  const [email, setEmail] = useState("user@company.com");
+  const [email, setEmail] = useState("admin@gmail.com");
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState("");
 
-  // Password Management
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const profile = getStoredProfile();
+    setEmail(profile.email);
+    setHighRiskAlerts(profile.preferences.highRiskAlerts);
+    setDailyReports(profile.preferences.dailyReports);
+    setNotificationEmails(profile.preferences.notificationEmails);
+  }, []);
+
+  const persistPreferences = (nextPreferences: {
+    highRiskAlerts: boolean;
+    dailyReports: boolean;
+    notificationEmails: string[];
+  }) => {
+    updateAccountPreferences(nextPreferences);
+    toast.success("Settings updated.");
+  };
 
   const getPasswordStrength = (password: string) => {
     if (password.length === 0) return { strength: 0, label: "", color: "" };
@@ -30,23 +52,87 @@ export function SettingsPage() {
 
   const passwordStrength = getPasswordStrength(newPassword);
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const canSavePassword = currentPassword && newPassword.length >= 8 && passwordsMatch;
+  const profile = getStoredProfile();
+  const currentPasswordMatches = currentPassword === profile.password;
+  const canSavePassword = currentPasswordMatches && newPassword.length >= 8 && passwordsMatch;
 
   const handleEmailUpdate = () => {
+    const normalizedEmail = newEmail.trim().toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+
+    if (!isValidEmail) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+
+    const updated = updateAccountEmail(normalizedEmail);
+    setEmail(updated.email);
+    setNotificationEmails((currentEmails) => {
+      const nextEmails = currentEmails.includes(normalizedEmail)
+        ? currentEmails
+        : [normalizedEmail, ...currentEmails];
+      updateAccountPreferences({
+        highRiskAlerts,
+        dailyReports,
+        notificationEmails: nextEmails,
+      });
+      return nextEmails;
+    });
     setShowEmailModal(false);
-    // In a real app, this would trigger the verification email
-    alert(`Verification link sent to ${newEmail}. Please check your inbox.`);
     setNewEmail("");
+    toast.success(`Login email updated to ${updated.email}.`);
+  };
+
+  const addNotificationEmail = () => {
+    const normalizedEmail = notificationEmailInput.trim().toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+
+    if (!isValidEmail) {
+      toast.error("Enter a valid notification email.");
+      return;
+    }
+
+    if (notificationEmails.includes(normalizedEmail)) {
+      toast.error("That notification email is already added.");
+      return;
+    }
+
+    const nextEmails = [...notificationEmails, normalizedEmail];
+    setNotificationEmails(nextEmails);
+    setNotificationEmailInput("");
+    persistPreferences({
+      highRiskAlerts,
+      dailyReports,
+      notificationEmails: nextEmails,
+    });
+  };
+
+  const removeNotificationEmail = (emailToRemove: string) => {
+    const nextEmails = notificationEmails.filter((value) => value !== emailToRemove);
+    setNotificationEmails(nextEmails);
+    persistPreferences({
+      highRiskAlerts,
+      dailyReports,
+      notificationEmails: nextEmails,
+    });
   };
 
   const handlePasswordChange = () => {
-    if (canSavePassword) {
-      // In a real app, this would call the API
-      alert("Password changed successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+    if (!currentPasswordMatches) {
+      toast.error("Current password is incorrect.");
+      return;
     }
+
+    if (!canSavePassword) {
+      toast.error("Password must be at least 8 characters and match confirmation.");
+      return;
+    }
+
+    updateAccountPassword(newPassword);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    toast.success("Password changed successfully.");
   };
 
   return (
@@ -57,7 +143,6 @@ export function SettingsPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Notifications */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -79,10 +164,14 @@ export function SettingsPage() {
                 <input
                   type="checkbox"
                   checked={highRiskAlerts}
-                  onChange={(e) => setHighRiskAlerts(e.target.checked)}
+                  onChange={(e) => {
+                    const nextValue = e.target.checked;
+                    setHighRiskAlerts(nextValue);
+                    persistPreferences({ highRiskAlerts: nextValue, dailyReports, notificationEmails });
+                  }}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1A56FF]"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1A56FF]" />
               </label>
             </div>
 
@@ -95,64 +184,85 @@ export function SettingsPage() {
                 <input
                   type="checkbox"
                   checked={dailyReports}
-                  onChange={(e) => setDailyReports(e.target.checked)}
+                  onChange={(e) => {
+                    const nextValue = e.target.checked;
+                    setDailyReports(nextValue);
+                    persistPreferences({ highRiskAlerts, dailyReports: nextValue, notificationEmails });
+                  }}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1A56FF]"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1A56FF]" />
               </label>
             </div>
-          </div>
-        </div>
 
-        {/* Model Configuration */}
-        <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-              <SettingsIcon className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <h2 className="font-medium text-gray-900">Model Configuration</h2>
-              <p className="text-sm text-gray-500">Adjust prediction and training settings</p>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="font-medium text-gray-900">Prediction Threshold</label>
-                <span className="text-sm text-gray-600">{threshold}%</span>
+            <div className="border-t border-[#E5E7EB] pt-4">
+              <div className="font-medium text-gray-900">Notification Recipients</div>
+              <div className="text-sm text-gray-500 mt-1">
+                Add one or more email addresses to receive alert and report notifications.
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={threshold}
-                onChange={(e) => setThreshold(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1A56FF]"
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                Predictions above this threshold are classified as high risk
+
+              <div className="mt-4 flex gap-3">
+                <div className="flex-1 relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={notificationEmailInput}
+                    onChange={(e) => setNotificationEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addNotificationEmail();
+                      }
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A56FF] focus:border-transparent"
+                    placeholder="Add notification email"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addNotificationEmail}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-[#1A56FF] rounded-lg hover:bg-[#0f3fb8] transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Email
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {notificationEmails.length > 0 ? (
+                  notificationEmails.map((notificationEmail) => (
+                    <div
+                      key={notificationEmail}
+                      className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="text-sm text-gray-800 truncate">{notificationEmail}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeNotificationEmail(notificationEmail)}
+                        className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[#D1D5DB] px-4 py-6 text-sm text-gray-500 text-center">
+                    No notification recipients configured.
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3">
+                Notifications are sent to all saved recipients. Login email and notification emails can be managed separately.
               </p>
             </div>
-
-            <div>
-              <label className="block font-medium text-gray-900 mb-2">Auto-Retrain Schedule</label>
-              <select
-                value={autoRetrain}
-                onChange={(e) => setAutoRetrain(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A56FF] focus:border-transparent"
-              >
-                <option value="Off">Off</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Monthly">Monthly</option>
-                <option value="Quarterly">Quarterly</option>
-              </select>
-              <p className="text-sm text-gray-500 mt-2">Automatically retrain the model on this schedule</p>
-            </div>
           </div>
         </div>
 
-        {/* Security & Account Profile */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
@@ -165,7 +275,6 @@ export function SettingsPage() {
           </div>
 
           <div className="space-y-6">
-            {/* Account Identity Section */}
             <div className="border-b border-[#E5E7EB] pb-6">
               <h3 className="font-medium text-gray-900 mb-4">Account Identity</h3>
               <div>
@@ -187,11 +296,10 @@ export function SettingsPage() {
                     Update Email
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">This email is used for login and notifications</p>
+                <p className="text-xs text-gray-500 mt-2">This email is used for login and can also be added to notification recipients.</p>
               </div>
             </div>
 
-            {/* Credential Management Section */}
             <div>
               <h3 className="font-medium text-gray-900 mb-4">Change Password</h3>
               <div className="space-y-4">
@@ -213,6 +321,9 @@ export function SettingsPage() {
                       {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                  {currentPassword && !currentPasswordMatches && (
+                    <div className="mt-2 text-xs text-red-600">Current password does not match the saved credential.</div>
+                  )}
                 </div>
 
                 <div>
@@ -299,9 +410,8 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* Email Update Modal */}
         {showEmailModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
               <h3 className="font-semibold text-lg text-gray-900 mb-4">Update Email Address</h3>
               <div className="space-y-4">
@@ -326,7 +436,7 @@ export function SettingsPage() {
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
                   <p className="text-xs text-blue-900">
-                    A verification link will be sent to your new email address. Your login email will not change until verified.
+                    This change takes effect immediately for the next login and updates the signed-in profile.
                   </p>
                 </div>
                 <div className="flex gap-3 pt-2">
@@ -341,21 +451,15 @@ export function SettingsPage() {
                   </button>
                   <button
                     onClick={handleEmailUpdate}
-                    disabled={!newEmail || newEmail === email}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                      newEmail && newEmail !== email
-                        ? "bg-[#1A56FF] text-white hover:bg-[#0f3fb8]"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }`}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#1A56FF] rounded-lg hover:bg-[#0f3fb8] transition-colors"
                   >
-                    Send Verification
+                    Save Email
                   </button>
                 </div>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
