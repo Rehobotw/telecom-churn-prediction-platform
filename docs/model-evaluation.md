@@ -1,104 +1,118 @@
-# Model Evaluation – Telecom Churn Prediction
+# Model Evaluation and Decision Utility Report
 
-This document summarizes how the churn prediction models were evaluated and how the final model was selected, based on the modeling notebooks and the code in `ml-service/src/train.py` and `ml-service/src/evaluate.py`.
+This report documents current model performance, selection logic, and operational threshold interpretation for the telecom churn platform.
 
----
+## 1. Evaluation Objective
 
-## Evaluation Setup
+The evaluation goal is two-layered:
 
-- **Input data**: `data/processed/telecom_churn_clean.csv`
-- **Target variable**: `churn`
-- **Train/test split**:
-	- `test_size = 0.2`
-	- `random_state = 42`
-	- Stratified by `churn` to preserve class balance.
+1. Statistical quality: identify a model with strong minority-class ranking and detection performance.
+2. Decision utility: ensure model scores can be mapped to actionable risk bands (Low/Medium/High) without losing business credibility.
 
-### Models Compared
+## 2. Current Model Selection State
 
-1. **Logistic Regression (Baseline)**
-	 - Implementation: `sklearn.linear_model.LogisticRegression`
-	 - Key parameters:
-		 - `max_iter = 1000`
-		 - `random_state = 42`
+From current model metadata:
 
-2. **Random Forest (Baseline)**
-	 - Implementation: `sklearn.ensemble.RandomForestClassifier`
-	 - Key parameters:
-		 - `n_estimators = 200`
-		 - `max_depth = None`
-		 - `n_jobs = -1`
-		 - `random_state = 42`
+- Selected model: random_forest
+- Baseline alternatives tracked: logistic_regression, random_forest
+- Selection criterion: best ROC-AUC on test split
 
----
+Relevant saved artifacts:
 
-## Metrics
+- final_model.pkl
+- preprocessor.pkl
+- model_metadata.json
+- metrics.json
 
-The following metrics are computed on the test set for each model:
+## 3. Current Test Metrics (From metrics.json)
 
-- **Accuracy** – Overall fraction of correct predictions.
-- **Precision** – Among predicted churners, how many actually churned.
-- **Recall** – Among actual churners, how many were correctly predicted.
-- **F1 Score** – Harmonic mean of precision and recall.
-- **ROC-AUC** – Area under the ROC curve, measuring ranking quality across thresholds.
+Random Forest test metrics:
 
-ROC curves and confusion matrices are plotted in the notebooks:
+- Accuracy: 0.7601
+- Precision: 0.5340
+- Recall: 0.7567
+- F1 Score: 0.6261
+- ROC-AUC: 0.8424
+- Confusion matrix:
+  - TN: 788
+  - FP: 247
+  - FN: 91
+  - TP: 283
 
-- `ml-service/notebooks/03_logistic_regression_baseline.ipynb`
-- `ml-service/notebooks/04_random_forest_baseline.ipynb`
-- `ml-service/notebooks/05_model_comparison_and_selection.ipynb`
+Logistic Regression comparison metrics (from model_metadata.json):
 
----
+- Accuracy: 0.7353
+- Precision: 0.5009
+- Recall: 0.7781
+- F1 Score: 0.6094
+- ROC-AUC: 0.8409
 
-## Model Comparison and Selection
+Interpretation:
 
-The selection process is implemented in the notebook `05_model_comparison_and_selection.ipynb` and mirrored programmatically in `ml-service/src/train.py`:
+- Random forest achieved the best AUC and better precision/F1 than logistic baseline, with slightly lower recall.
+- This supports its current role as the production model.
 
-1. Train both Logistic Regression and Random Forest on the same training split.
-2. Generate predictions and predicted probabilities for the test set.
-3. Compute the evaluation metrics listed above.
-4. Build a comparison table capturing:
-	 - Model name
-	 - Accuracy
-	 - Precision
-	 - Recall
-	 - F1 Score
-	 - ROC-AUC
-5. **Select the best model based on ROC-AUC**, as it is well-suited for imbalanced classification problems like churn prediction.
-6. Save:
-	 - Baseline models:
-		 - `ml-service/models/logistic_regression_baseline.pkl`
-		 - `ml-service/models/random_forest_baseline.pkl`
-	 - Final selected model:
-		 - `ml-service/models/final_model.pkl`
+## 4. Why Accuracy Is Secondary
 
-The `final_model.pkl` artifact is the one served by the FastAPI prediction service in `ml-service/app.py`.
+Churn prediction is class-imbalanced and intervention-driven. Therefore:
 
----
+- Accuracy is not sufficient to judge retention utility.
+- Precision and recall are primary for campaign efficiency and coverage.
+- ROC-AUC is central for ranking quality before thresholding.
 
-## Scriptable Evaluation
+This is consistent with current selection logic and downstream risk-band usage.
 
-While the notebooks provide rich visual analysis, you can also evaluate the final model from the command line using `ml-service/src/evaluate.py`:
+## 5. Probability-to-Risk Decision Layer
 
-```bash
-cd ml-service
-python -m src.evaluate
-```
+The platform uses probability score as primary output and maps it to risk labels:
 
-This script:
+- Low: 0.00 to 0.33
+- Medium: 0.34 to 0.66
+- High: 0.67 to 1.00
 
-1. Loads the processed dataset (or triggers preprocessing if needed).
-2. Performs a stratified train/test split using the same configuration as training.
-3. Loads `final_model.pkl`.
-4. Computes and prints Accuracy, Precision, Recall, F1, and ROC-AUC.
+Decision impact:
 
----
+1. Enables ranked intervention queues.
+2. Allows budget/capacity-constrained treatment selection.
+3. Keeps model explainability for business stakeholders.
 
-## Interpretation and Next Steps
+## 6. Threshold Strategy and Calibration Guidance
 
-- Metrics provide a baseline understanding of how well the current model distinguishes churners from non-churners.
-- Future improvements may include:
-	- Hyperparameter tuning (e.g., grid search or randomized search).
-	- Cross-validation for more robust estimates.
-	- Trying additional model families (e.g., gradient boosting, XGBoost, LightGBM).
-	- Calibrating predicted probabilities if needed for downstream decision thresholds.
+Current thresholds are a default operational baseline. To mature into a governed decision policy, apply the following calibration cycle:
+
+1. Build probability deciles and realized churn rates.
+2. Quantify intervention success and treatment cost by segment.
+3. Align high-risk cutoff with weekly capacity limits.
+4. Re-optimize cutoff for economic utility, not fixed convention.
+5. Revalidate after model retrain or data distribution shift.
+
+## 7. Validation Design Review
+
+Implemented/available validation elements:
+
+- Stratified train/test evaluation in training/evaluation scripts.
+- Confusion matrix and ROC curve artifacts.
+- Side-by-side baseline model comparison.
+- Metrics endpoint for runtime observability.
+
+Recommended next hardening:
+
+1. Cross-validation confidence intervals.
+2. Temporal validation split for drift-sensitive checks.
+3. Calibration diagnostics (reliability curve, Brier score).
+4. Segment-level evaluation (contract type, tenure buckets, payment methods).
+
+## 8. Operational Metrics to Track Post-Deployment
+
+To close the model-to-business loop, track monthly:
+
+1. Contacted high-risk customer volume versus capacity.
+2. Save rate by risk band and intervention type.
+3. False positive burden (unnecessary intervention cost).
+4. Missed churn cost from false negatives.
+5. Drift in risk-band distribution.
+
+## 9. Final Evaluation Decision Statement
+
+The current random forest model demonstrates acceptable ranking quality and useful recall for churn intervention workflows. The model is fit for score-based prioritization with the existing three-band policy, provided threshold calibration is treated as an ongoing operational process tied to capacity and retention economics rather than a static technical constant.
 

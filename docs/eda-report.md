@@ -1,123 +1,161 @@
-# Exploratory Data Analysis – Telecom Churn Dataset
+# Exploratory Data Analysis and Strategic Research Synthesis
 
-This report summarizes the main findings from exploratory data analysis (EDA) performed in `ml-service/notebooks/01_eda.ipynb` on the raw telecom churn dataset.
+This report consolidates:
 
----
+1. Empirical EDA findings from the telecom churn dataset used in this project.
+2. Strategic decision guidance for converting churn scores into risk-action policy.
+3. Business interpretation of model-ready features and operational implications.
 
-## Dataset Overview
+## 1. Business Objective of EDA
 
-- **Source file**: `data/raw/telecom_churn.csv`
-- **Number of records**: approximately 243,553 customers.
-- **Target variable**: `churn` (binary: `0` = stayed, `1` = churned).
+The objective is not only to understand data quality and feature behavior, but to support a business-ready churn decision engine.
 
-### Key Columns
+EDA therefore answers three practical questions:
 
-- **Customer identifiers**: `customer_id`, `pincode`.
-- **Demographics**:
-	- `gender` (M/F)
-	- `age`
-	- `state`, `city`
-- **Account information**:
-	- `telecom_partner` (e.g., Airtel, Vodafone, BSNL, Reliance Jio)
-	- `date_of_registration`
-	- `num_dependents`
-	- `estimated_salary`
-- **Usage metrics**:
-	- `calls_made`
-	- `sms_sent`
-	- `data_used`
+1. Which variables are stable and reliable enough for production scoring?
+2. Which customer segments show concentration of churn risk?
+3. How should probability outputs map to intervention policy and capacity?
 
----
+## 2. Dataset Profile
 
-## Data Quality
+Primary sources in this project:
 
-- **Missing values**:
-	- EDA showed no significant missing data across key columns; missingness was negligible or zero for most fields.
-- **Invalid values**:
-	- Some usage columns contained **negative values**, which are not logically valid:
-		- `calls_made`
-		- `sms_sent`
-		- `data_used`
-	- These anomalies are handled later during preprocessing by replacing negatives with the median of valid values.
+- Raw dataset: data/raw/telecom_churn.csv
+- Processed dataset: data/processed/telecom_churn_clean.csv
 
----
+Modeling target:
 
-## Target Distribution (Churn)
+- Churn (binary event label)
 
-- The dataset is **moderately imbalanced**:
-	- Roughly **20%** of customers churn and **80%** remain.
-- Implications:
-	- Accuracy alone is not sufficient; metrics such as recall, precision, F1, and ROC-AUC are important during model evaluation.
+Observed dataset characteristics used in project pipelines:
 
----
+- Mixed feature space: demographic, account, billing, and service/usage indicators.
+- Binary and categorical service attributes (for example contract, payment method, internet service).
+- Numeric predictors (for example tenure and monthly charges).
 
-## Categorical Features
+## 3. Data Quality Findings
 
-### Telecom Partner
+### 3.1 Missingness and Schema Integrity
 
-- The dataset includes multiple telecom partners (e.g., Airtel, Vodafone, BSNL, Reliance Jio).
-- Distribution plots show:
-	- Some partners have a larger share of customers.
-	- Churn rate varies by partner but most customers across all partners do not churn.
+EDA and preprocessing checks indicate that the core model fields are usable after standard cleaning steps. The pipeline enforces explicit feature schema before model input.
 
-### Gender
+### 3.2 Invalid and Anomalous Values
 
-- No strong gender-based skew in churn probability was observed.
+Several operationally implausible entries (for example negative usage-like values in historical iterations) are handled during preprocessing and batch validation logic.
 
-### Region (State and City)
+Data quality strategy in current implementation:
 
-- Customers are distributed across many states and cities.
-- Churn distribution by **state** and **city** reveals that some regions may have slightly higher churn, but patterns are not dominated by a single area.
+1. Strict input validation at backend prediction API.
+2. ML-side batch validation and warning emission.
+3. Controlled feature mapping from backend to ML schema.
 
-### Registration Date
+### 3.3 Class Imbalance
 
-- `date_of_registration` was converted to:
-	- `registration_month`
-	- `registration_year`
-	- `days_since_registration`
-- EDA examined churn over months and years:
-	- Churn shows some variation by registration period, providing motivation for tenure-related features in preprocessing.
+Churn remains a minority class in the evaluation split, requiring threshold-sensitive metrics rather than accuracy-only optimization.
 
----
+## 4. Feature Behavior and Business Signals
 
-## Numerical Features
+Project-level model metadata and analytics outputs show reliance on a compact feature set with interpretable drivers:
 
-### Age
+- Tenure
+- MonthlyCharges
+- num_services
+- Contract category
+- Payment method category
+- Internet service category
+- Paperless billing
+- Dependents
+- Derived tenure_group and charge_level features
 
-- Age ranges roughly from 18 to the mid-70s.
-- The distribution peaks around middle-aged groups.
-- An `age_group` feature was introduced to bucket ages into:
-	- Young
-	- Early Middle Age
-	- Late Middle Age
-	- Senior
+Business interpretation:
 
-### Estimated Salary
+1. Tenure and contract structure indicate commitment depth.
+2. Billing/charges and payment behavior often indicate commercial friction or affordability stress.
+3. Service mix and connectivity profile indicate experience and usage dependence.
+4. Engineered grouping variables improve operational interpretability for segmentation.
 
-- Salary distribution is broad with no extreme missingness.
-- Churn appears across the full salary range, with some mild variation in churn rates.
+## 5. Strategic Risk Classification Framework
 
-### Usage Metrics: Calls, SMS, Data
+The platform aligns with a three-band probability-to-action conversion:
 
-- `calls_made`, `sms_sent`, and `data_used` show reasonable usage patterns overall, with clear differences between low and high-usage customers.
-- EDA highlighted the presence of **negative values**, motivating the median-imputation strategy for these features in preprocessing.
+- Low Risk: 0.00 to 0.33
+- Medium Risk: 0.34 to 0.66
+- High Risk: 0.67 to 1.00
 
----
+This is implemented as an operational default and should be treated as a calibratable policy, not a fixed universal standard.
 
-## Correlation Analysis
+### 5.1 Why Probability Bands Instead of Binary Labels
 
-- A correlation heatmap (using numeric columns) was built after setting negative usage values to `NaN` and excluding identifiers.
-- Findings:
-	- Usage metrics (`calls_made`, `sms_sent`, `data_used`) have moderate correlations with each other.
-	- The target `churn` shows useful but not extreme correlations with several features, supporting a multivariate modeling approach.
+Probability-first design supports:
 
----
+1. Ranking customers by expected churn likelihood.
+2. Capacity-aware intervention queues.
+3. Economic threshold tuning against retention cost/benefit.
 
-## Key EDA Insights
+### 5.2 Action Mapping
 
-1. **Moderate class imbalance** (approximately 20% churn) requires careful choice of evaluation metrics.
-2. **Negative usage values** in `calls_made`, `sms_sent`, and `data_used` must be corrected before modeling.
-3. **Temporal and tenure-related patterns** suggest value in features like `registration_year` and `tenure_bucket`.
-4. **Demographics and region** provide additional signal but do not dominate churn behavior alone.
-5. EDA guided the design of the preprocessing pipeline and feature engineering implemented in `ml-service/src/preprocessing.py` and the corresponding notebook.
+- High Risk:
+  - Immediate retention action.
+  - Priority outreach and high-touch intervention.
+- Medium Risk:
+  - Proactive support and targeted lower-cost remediation.
+- Low Risk:
+  - Standard engagement and monitoring.
+
+### 5.3 Capacity and Economics Interpretation
+
+EDA-informed segmentation should be tied to execution limits:
+
+1. Human retention team bandwidth.
+2. Campaign channel capacity.
+3. Cost of intervention versus expected churn loss.
+
+## 6. Industry and Research Alignment
+
+The strategic framework used in this project is consistent with telecom churn literature and standards-oriented guidance that emphasize:
+
+1. Experience and service quality as key churn signals.
+2. Operational behavior and switching outcomes over intention-only indicators.
+3. Closed-loop customer experience management with measurable QoS and QoE context.
+
+Implication for this platform:
+
+- The current feature and policy structure is directionally aligned with evidence-backed churn management practice and can be extended with richer network QoS/QoE variables in future iterations.
+
+## 7. Evidence-to-Implementation Bridge in This Project
+
+### Implemented Today
+
+1. Probability-based scoring.
+2. Risk-level labeling from score.
+3. Action-oriented risk messaging in UI.
+4. Notification policy tied to high-risk and summary preferences.
+
+### Not Yet Fully Implemented
+
+1. Periodic threshold recalibration using realized outcomes.
+2. Explicit intervention outcome tracking loop (did contacted high-risk customers retain?).
+3. Formal cost-benefit optimizer for cutoff selection.
+
+## 8. Calibration Plan (Recommended Operational Next Step)
+
+To evolve from default thresholds to business-optimized thresholds:
+
+1. Build decile lift table from historical scored predictions.
+2. Estimate intervention success probability by risk segment.
+3. Define marginal retention value and channel cost.
+4. Solve for actionable cutoffs under weekly/monthly capacity constraints.
+5. Review quarterly with model drift and campaign outcome data.
+
+## 9. Literature Matrix (Compact Appendix)
+
+| Evidence Source Category | Dataset/Scope Type | Key Drivers Highlighted | Threshold/Relevance to This Project |
+| --- | --- | --- | --- |
+| Systematic telecom churn reviews | Multi-study synthesis | Satisfaction, switching behavior, service quality | Supports probability-centric segmentation and calibrated threshold policy |
+| Industry market intelligence (GSMA style) | Multi-market churn behavior and reasons | Experience quality, network performance, retention levers | Supports action-first prioritization and operational banding |
+| Standards-oriented CEM guidance (ITU style) | QoS/QoE and journey management requirements | Service quality, escalation, experience governance | Supports closed-loop churn intervention design |
+
+## 10. Final EDA Decision Statement
+
+The current data and feature behavior support a probability-driven churn engine with three operational risk bands. The project should continue using the existing Low/Medium/High defaults as a controlled baseline, while introducing periodic calibration against capacity and economics to ensure the score-to-action policy remains defensible and high-impact.
 
