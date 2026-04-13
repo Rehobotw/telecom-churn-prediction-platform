@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { TrendingUp, AlertTriangle } from "lucide-react";
-import { authenticate, isAuthenticated, setAuthenticatedSession } from "../../lib/auth";
+import {
+  REMEMBER_EMAIL_STORAGE_KEY,
+  authenticate,
+  isAuthenticated,
+  setAuthenticatedSession,
+} from "../../lib/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -11,7 +16,7 @@ export function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const rememberedEmail = window.localStorage.getItem("churn-insights-remember-email");
+    const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_STORAGE_KEY);
     if (rememberedEmail) {
       setEmail(rememberedEmail);
       setRememberMe(true);
@@ -20,7 +25,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate("/");
+      navigate("/app", { replace: true });
     }
   }, [navigate]);
 
@@ -29,12 +34,12 @@ export function LoginPage() {
     if (authenticate(email, password)) {
       setAuthenticatedSession(email.trim().toLowerCase());
       if (rememberMe) {
-        window.localStorage.setItem("churn-insights-remember-email", email.trim().toLowerCase());
+        window.localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, email.trim().toLowerCase());
       } else {
-        window.localStorage.removeItem("churn-insights-remember-email");
+        window.localStorage.removeItem(REMEMBER_EMAIL_STORAGE_KEY);
       }
       setError("");
-      navigate("/");
+      navigate("/app", { replace: true });
       return;
     }
 
@@ -52,9 +57,10 @@ export function LoginPage() {
             <h1 className="font-semibold text-2xl text-gray-900">Churn Insights</h1>
             <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
             <div className="mt-4 w-full rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-left">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Demo Access</div>
-              <div className="mt-2 text-sm text-blue-950">Email: admin@gmail.com</div>
-              <div className="text-sm text-blue-950">Password: admin123</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Access</div>
+              <div className="mt-2 text-sm text-blue-950">
+                Use the administrator credentials configured for this deployment.
+              </div>
             </div>
           </div>
 

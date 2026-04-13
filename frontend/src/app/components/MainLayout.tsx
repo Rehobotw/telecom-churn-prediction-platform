@@ -1,35 +1,33 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Target, Users, BarChart3, Settings, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { clearAuthenticatedSession, getAuthenticatedSession, isAuthenticated } from "../lib/auth";
+import { clearAuthenticatedSession, isAuthenticated } from "../lib/auth";
 
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
-  const [sessionEmail, setSessionEmail] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      navigate("/login");
+      navigate("/login", { replace: true });
       return;
     }
 
-    setSessionEmail(getAuthenticatedSession()?.email ?? "");
     setAuthReady(true);
   }, [navigate]);
 
   const navItems = [
-    { path: "/", label: "Overview", icon: LayoutDashboard },
-    { path: "/predictions", label: "Predictions", icon: Target },
-    { path: "/customers", label: "Customers", icon: Users },
-    { path: "/model-metrics", label: "Model Metrics", icon: BarChart3 },
-    { path: "/settings", label: "Settings", icon: Settings },
+    { path: "/app", label: "Overview", icon: LayoutDashboard },
+    { path: "/app/predictions", label: "Predictions", icon: Target },
+    { path: "/app/customers", label: "Customers", icon: Users },
+    { path: "/app/model-metrics", label: "Model Metrics", icon: BarChart3 },
+    { path: "/app/settings", label: "Settings", icon: Settings },
   ];
 
   const handleLogout = () => {
     clearAuthenticatedSession();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   if (!authReady) {
@@ -43,18 +41,15 @@ export function MainLayout() {
         <div className="p-6 border-b border-[#E5E7EB]">
           <h1 className="font-semibold text-xl text-gray-900">Churn Insights</h1>
           <p className="text-sm text-gray-500 mt-1">Telecom Analytics</p>
-          <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
-              Signed In
-            </div>
-            <div className="mt-1 text-sm font-medium text-gray-900">{sessionEmail || "--"}</div>
-          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive =
+              item.path === "/app"
+                ? location.pathname === "/app"
+                : location.pathname.startsWith(item.path);
             return (
               <Link
                 key={item.path}

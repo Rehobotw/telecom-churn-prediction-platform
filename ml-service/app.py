@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,6 +14,11 @@ from routes.metrics import router as metrics_router
 from routes.model_info import router as model_info_router
 from routes.predict import router as predict_router
 from src.predict import load_artifacts
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("ML_CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 @asynccontextmanager
@@ -37,7 +43,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

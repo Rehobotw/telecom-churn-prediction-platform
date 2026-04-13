@@ -22,8 +22,14 @@ async def batch_predict_route(file: UploadFile = File(...)) -> Dict[str, Any]:
 
     try:
         df = pd.read_csv(io.BytesIO(content))
-        _, records = batch_predict(df)
+        _, records, validation = batch_predict(df)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {"count": len(records), "results": records}
+    return {
+        "count": len(records),
+        "results": records,
+        "warnings": validation.warnings,
+        "row_warnings": validation.row_warnings,
+        "ignored_columns": validation.ignored_columns,
+    }

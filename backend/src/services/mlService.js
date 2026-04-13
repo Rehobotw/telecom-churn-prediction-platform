@@ -62,12 +62,24 @@ const predictBatch = async (file) => {
     }
 
     const payload = await response.json();
-    return payload.results.map((result) => ({
-      customerData: result,
-      churnProbability: Number(result.probability),
-      churnPrediction: Boolean(result.prediction),
-      riskLevel: result.risk,
-    }));
+    if (!payload || !Array.isArray(payload.results)) {
+      const error = new Error('Invalid response from ML service');
+      error.status = 502;
+      error.details = payload;
+      throw error;
+    }
+
+    return {
+      results: payload.results.map((result) => ({
+        customerData: result,
+        churnProbability: Number(result.probability),
+        churnPrediction: Boolean(result.prediction),
+        riskLevel: result.risk,
+      })),
+      warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
+      rowWarnings: Array.isArray(payload.row_warnings) ? payload.row_warnings : [],
+      ignoredColumns: Array.isArray(payload.ignored_columns) ? payload.ignored_columns : [],
+    };
   } catch (err) {
     handleMLError(err);
   }
@@ -109,11 +121,30 @@ const getModelInfo = async () => {
   }
 };
 
+const parsePossibleJson = (value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
 const handleMLError = (err) => {
   if (err.response) {
     const error = new Error('ML service error');
     error.status = err.response.status || 502;
     error.details = err.response.data;
+    throw error;
+  }
+
+  if (err.status) {
+    const error = new Error(err.message || 'ML service error');
+    error.status = err.status;
+    error.details = parsePossibleJson(err.details);
     throw error;
   }
 
@@ -148,28 +179,3 @@ module.exports = {
   getMetrics,
   getModelInfo,
 };
-/*const predictCustomer = async (data) => {
-  return {
-    churnProbability: 0.82,
-    churnPrediction: true
-  };
-};
-
-const predictBatch = async () => {
-  return [];
-};
-
-const getAnalytics = async () => {
-  return {};
-};
-
-const getMetrics = async () => {
-  return {};
-};
-
-module.exports = {
-  predictCustomer,
-  predictBatch,
-  getAnalytics,
-  getMetrics
-};*/

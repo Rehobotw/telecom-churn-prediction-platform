@@ -2,6 +2,7 @@ const mlService = require('../services/mlService');
 const customerService = require('../services/customerService');
 const { v4: uuidv4 } = require('uuid');
 const { generateCSV } = require('../utils/csvHandler');
+const fs = require('fs').promises;
 
 const FIRST_NAMES = [
   'Amina',
@@ -43,8 +44,8 @@ const predictBatch = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const mlResults = await mlService.predictBatch(req.file);
-    const processedData = mlResults.map((result, index) => {
+    const mlResponse = await mlService.predictBatch(req.file);
+    const processedData = mlResponse.results.map((result, index) => {
       const customerId = uuidv4();
       const fallbackIdentity = buildFakeIdentity(index);
       return {
@@ -92,10 +93,17 @@ const predictBatch = async (req, res, next) => {
         processed: processedData.length,
         results: processedData,
         csvContent,
+        warnings: mlResponse.warnings,
+        rowWarnings: mlResponse.rowWarnings,
+        ignoredColumns: mlResponse.ignoredColumns,
       },
     });
   } catch (err) {
     next(err);
+  } finally {
+    if (req.file?.path) {
+      await fs.unlink(req.file.path).catch(() => {});
+    }
   }
 };
 

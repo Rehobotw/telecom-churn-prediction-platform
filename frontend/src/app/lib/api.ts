@@ -26,6 +26,23 @@ export type CustomerRecord = {
   predictionDate: string;
 };
 
+export type CustomerListResponse = {
+  data: CustomerRecord[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+const DEFAULT_CUSTOMER_PAGINATION: CustomerListResponse["pagination"] = {
+  page: 1,
+  pageSize: 100,
+  total: 0,
+  totalPages: 1,
+};
+
 export type OverviewResponse = {
   totalCustomers: number;
   churnRate: number;
@@ -101,6 +118,9 @@ export type BatchPredictionRow = {
 export type BatchPredictionResponse = {
   rows: BatchPredictionRow[];
   csvContent: string;
+  warnings: string[];
+  rowWarnings: Array<{ row: number; column: string; message: string }>;
+  ignoredColumns: string[];
 };
 
 const API_BASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -173,10 +193,48 @@ export function getOverview() {
   );
 }
 
-export function getCustomers() {
-  return requestJson<{ success: boolean; data: CustomerRecord[] }>("/api/customers").then(
-    (response) => response.data.map(mapCustomerRecord),
-  );
+export function getCustomers(params?: {
+  search?: string;
+  risk?: string;
+  contractType?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.risk) searchParams.set("risk", params.risk);
+  if (params?.contractType) searchParams.set("contractType", params.contractType);
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.pageSize) searchParams.set("pageSize", String(params.pageSize));
+
+  const query = searchParams.toString();
+  const path = query ? `/api/customers?${query}` : "/api/customers";
+
+  return requestJson<{
+    success: boolean;
+    data: CustomerRecord[];
+    pagination?: Partial<CustomerListResponse["pagination"]>;
+  }>(path).then((response) => ({
+    data: response.data.map(mapCustomerRecord),
+    pagination: {
+      page: Number(response.pagination?.page ?? params?.page ?? DEFAULT_CUSTOMER_PAGINATION.page),
+      pageSize: Number(
+        response.pagination?.pageSize ?? params?.pageSize ?? DEFAULT_CUSTOMER_PAGINATION.pageSize,
+      ),
+      total: Number(response.pagination?.total ?? response.data.length ?? DEFAULT_CUSTOMER_PAGINATION.total),
+      totalPages: Number(
+        response.pagination?.totalPages ??
+          Math.max(
+            1,
+            Math.ceil(
+              Number(response.pagination?.total ?? response.data.length ?? 0) /
+                Number(response.pagination?.pageSize ?? params?.pageSize ?? DEFAULT_CUSTOMER_PAGINATION.pageSize),
+            ),
+          ),
+      ),
+    },
+  }));
 }
 
 export function getModelMetrics() {
@@ -223,6 +281,9 @@ export async function uploadBatchPredictions(file: File) {
     success: boolean;
     data: {
       csvContent?: string;
+      warnings?: string[];
+      rowWarnings?: Array<{ row: number; column: string; message: string }>;
+      ignoredColumns?: string[];
       results: Array<{
         customerId: string;
         name?: string;
@@ -251,5 +312,8 @@ export async function uploadBatchPredictions(file: File) {
       timestamp: row.predictionDate,
     })),
     csvContent: payload.data.csvContent ?? "",
+    warnings: payload.data.warnings ?? [],
+    rowWarnings: payload.data.rowWarnings ?? [],
+    ignoredColumns: payload.data.ignoredColumns ?? [],
   } satisfies BatchPredictionResponse;
 }

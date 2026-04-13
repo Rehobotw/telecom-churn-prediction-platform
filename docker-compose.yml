@@ -1,39 +1,31 @@
-version: "3.9"
-
 services:
   ml-service:
-    image: python:3.11-slim
-    working_dir: /app/ml-service
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app:app --host 0.0.0.0 --port 8000"
-    volumes:
-      - .:/app
+    build:
+      context: ./ml-service
+    environment:
+      ML_CORS_ORIGINS: http://localhost,http://localhost:80,http://frontend
     ports:
       - "8000:8000"
 
   backend:
-    image: node:20
-    working_dir: /app/backend
-    command: sh -c "npm install && npm run start"
+    build:
+      context: ./backend
     environment:
+      NODE_ENV: production
       PORT: 3000
       ML_SERVICE_URL: http://ml-service:8000
-      CORS_ORIGIN: http://localhost:5173
-    volumes:
-      - .:/app
+      CORS_ORIGIN: http://localhost
+      UPLOADS_DIR: /app/uploads
+      MAX_UPLOAD_SIZE_BYTES: 10485760
     depends_on:
       - ml-service
     ports:
       - "3000:3000"
 
   frontend:
-    image: node:20
-    working_dir: /app/frontend
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      VITE_BACKEND_URL: http://backend:3000
-    volumes:
-      - .:/app
+    build:
+      context: ./frontend
     depends_on:
       - backend
     ports:
-      - "5173:5173"
+      - "80:80"

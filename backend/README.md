@@ -6,7 +6,7 @@ Node.js/Express backend for a Telecom Customer Churn Prediction platform.
 
 - Node.js (LTS recommended)
 - npm
-- A running Python ML API at `http://localhost:5000` (or another URL you configure)
+- A running Python ML API at `http://localhost:8000` (or another URL you configure)
 
 ## Setup
 
@@ -26,7 +26,7 @@ cp .env.example .env
 Then adjust values as needed:
 
 - `PORT`: Port for the Node.js server (default: `3000`)
-- `ML_SERVICE_URL`: Base URL of the Python ML service (default: `http://localhost:5000`)
+- `ML_SERVICE_URL`: Base URL of the Python ML service (default: `http://localhost:8000`)
 - `CUSTOMERS_FILE`: Path to customers.json (default: `src/data/customers.json`)
 
 ## Running the server

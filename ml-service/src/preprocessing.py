@@ -57,21 +57,43 @@ def load_dataset(path: Path | str) -> pd.DataFrame:
 
 def _add_engineered_columns(df: pd.DataFrame) -> pd.DataFrame:
     engineered = df.copy()
-    for column in SERVICE_COLUMNS:
-        if column not in engineered.columns:
-            engineered[column] = None
-    engineered["num_services"] = (engineered[SERVICE_COLUMNS] == "Yes").sum(axis=1)
+    available_service_columns = [column for column in SERVICE_COLUMNS if column in engineered.columns]
+    if available_service_columns:
+        engineered["num_services"] = (engineered[available_service_columns] == "Yes").sum(axis=1)
+    elif "num_services" not in engineered.columns:
+        engineered["num_services"] = 0
+
     engineered.drop(columns=SERVICE_COLUMNS, inplace=True, errors="ignore")
-    engineered["tenure_group"] = pd.cut(
-        engineered["tenure"],
-        bins=TENURE_BINS,
-        labels=TENURE_LABELS,
-    )
-    engineered["charge_level"] = pd.cut(
-        engineered["MonthlyCharges"],
-        bins=CHARGE_BINS,
-        labels=CHARGE_LABELS,
-    )
+
+    if "tenure_group" not in engineered.columns:
+        engineered["tenure_group"] = pd.cut(
+            engineered["tenure"],
+            bins=TENURE_BINS,
+            labels=TENURE_LABELS,
+        )
+    else:
+        blank_tenure_group = engineered["tenure_group"].isna() | engineered["tenure_group"].astype(str).str.strip().eq("")
+        if blank_tenure_group.any():
+            engineered.loc[blank_tenure_group, "tenure_group"] = pd.cut(
+                engineered.loc[blank_tenure_group, "tenure"],
+                bins=TENURE_BINS,
+                labels=TENURE_LABELS,
+            )
+
+    if "charge_level" not in engineered.columns:
+        engineered["charge_level"] = pd.cut(
+            engineered["MonthlyCharges"],
+            bins=CHARGE_BINS,
+            labels=CHARGE_LABELS,
+        )
+    else:
+        blank_charge_level = engineered["charge_level"].isna() | engineered["charge_level"].astype(str).str.strip().eq("")
+        if blank_charge_level.any():
+            engineered.loc[blank_charge_level, "charge_level"] = pd.cut(
+                engineered.loc[blank_charge_level, "MonthlyCharges"],
+                bins=CHARGE_BINS,
+                labels=CHARGE_LABELS,
+            )
     return engineered
 
 

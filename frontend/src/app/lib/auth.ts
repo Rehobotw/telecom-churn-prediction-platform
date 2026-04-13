@@ -11,16 +11,25 @@ export type AccountProfile = {
   preferences: AccountPreferences;
 };
 
+const DEFAULT_ADMIN_EMAIL =
+  ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_ADMIN_EMAIL ?? "admin@gmail.com")
+    .trim()
+    .toLowerCase();
+const DEFAULT_ADMIN_PASSWORD =
+  (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_ADMIN_PASSWORD ??
+  (import.meta.env.DEV ? "admin123" : "change-me-before-production");
+
 const ACCOUNT_STORAGE_KEY = "churn-insights-account-profile";
 const SESSION_STORAGE_KEY = "churn-insights-auth";
+const REMEMBER_EMAIL_STORAGE_KEY = "churn-insights-remember-email";
 
 const defaultProfile: AccountProfile = {
-  email: "admin@gmail.com",
-  password: "admin123",
+  email: DEFAULT_ADMIN_EMAIL,
+  password: DEFAULT_ADMIN_PASSWORD,
   preferences: {
     highRiskAlerts: true,
     dailyReports: false,
-    notificationEmails: ["admin@gmail.com"],
+    notificationEmails: [DEFAULT_ADMIN_EMAIL],
     autoRetrain: "Monthly",
   },
 };
@@ -151,3 +160,5 @@ export function updateAccountPreferences(preferences: AccountPreferences) {
   saveStoredProfile(updated);
   return updated;
 }
+
+export { REMEMBER_EMAIL_STORAGE_KEY };

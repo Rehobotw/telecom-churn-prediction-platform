@@ -1,10 +1,33 @@
+node_modules/
+**/node_modules/
+
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+dist/
+build/
+coverage/
+*.log
+
 __pycache__/
 *.pyc
-.env
-models/*.pkl
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
 
-node_modules/
-.env
 frontend/dist/
+backend/uploads/
+ml-service/__pycache__/
+ml-service/.ipynb_checkpoints/
 
 data/raw/*.csv
+data/processed/*.csv
+
+.DS_Store
+Thumbs.db

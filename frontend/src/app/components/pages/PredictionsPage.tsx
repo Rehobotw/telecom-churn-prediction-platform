@@ -115,6 +115,7 @@ export function PredictionsPage() {
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchError, setBatchError] = useState("");
   const [batchCsvContent, setBatchCsvContent] = useState("");
+  const [batchWarnings, setBatchWarnings] = useState<string[]>([]);
 
   const filteredServiceOptions = useMemo(
     () =>
@@ -224,6 +225,7 @@ export function PredictionsPage() {
     setBatchResults([]);
     setBatchError("");
     setBatchCsvContent("");
+    setBatchWarnings([]);
   };
 
   const fieldError = (fieldName: string) => missingFields.includes(fieldName);
@@ -252,18 +254,27 @@ export function PredictionsPage() {
     if (file) {
       setUploadedFile(file);
       setBatchError("");
+      setBatchWarnings([]);
       setIsBatchUploading(true);
 
       try {
         const response = (await uploadBatchPredictions(file)) as BatchPredictionResponse;
         setBatchResults(response.rows);
         setBatchCsvContent(response.csvContent);
+        setBatchWarnings(response.warnings);
+        if (response.warnings.length > 0) {
+          toast.warning(response.warnings[0]);
+        }
         toast.success("Batch prediction completed. Use Download CSV when you want the file.");
-      } catch {
-        const message = "Unable to process batch file from backend.";
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Unable to process batch file from backend.";
         setBatchResults([]);
         setBatchError(message);
         setBatchCsvContent("");
+        setBatchWarnings([]);
         toast.error(`Error: ${message}`);
       } finally {
         setIsBatchUploading(false);
@@ -724,6 +735,13 @@ export function PredictionsPage() {
                   </div>
                 )}
                 {batchError && <div className="mt-4 text-sm text-red-600">{batchError}</div>}
+                {batchWarnings.length > 0 && (
+                  <div className="mt-4 space-y-1 text-left text-sm text-amber-700">
+                    {batchWarnings.slice(0, 5).map((warning) => (
+                      <div key={warning}>{warning}</div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {batchResults.length > 0 && (

@@ -14,7 +14,7 @@ export function SettingsPage() {
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [notificationEmailInput, setNotificationEmailInput] = useState("");
 
-  const [email, setEmail] = useState("admin@gmail.com");
+  const [email, setEmail] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState("");
 
