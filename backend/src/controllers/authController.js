@@ -2,28 +2,35 @@ const authService = require('../services/authService');
 const config = require('../config/config');
 const { createSessionToken } = require('../services/sessionService');
 
-const sessionCookieOptions = {
+const baseSessionCookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
   secure: config.COOKIE_SECURE,
-  maxAge: config.SESSION_TTL_MS,
   path: '/',
 };
 
-const setSessionCookie = (res, email) => {
-  res.cookie(config.SESSION_COOKIE_NAME, createSessionToken(email), sessionCookieOptions);
+const setSessionCookie = (res, email, rememberMe = false) => {
+  const maxAge = rememberMe ? config.REMEMBER_ME_TTL_MS : undefined;
+  res.cookie(
+    config.SESSION_COOKIE_NAME,
+    createSessionToken(email, maxAge ?? config.SESSION_TTL_MS),
+    {
+      ...baseSessionCookieOptions,
+      ...(maxAge ? { maxAge } : {}),
+    }
+  );
 };
 
 const clearSessionCookie = (res) => {
   res.clearCookie(config.SESSION_COOKIE_NAME, {
-    ...sessionCookieOptions,
+    ...baseSessionCookieOptions,
     maxAge: undefined,
   });
 };
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, rememberMe } = req.body || {};
     if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
@@ -34,11 +41,12 @@ const login = async (req, res, next) => {
     }
 
     const normalizedEmail = authService.normalizeEmail(email);
-    setSessionCookie(res, normalizedEmail);
+    setSessionCookie(res, normalizedEmail, Boolean(rememberMe));
     res.json({
       success: true,
       data: {
         email: normalizedEmail,
+        rememberMe: Boolean(rememberMe),
       },
     });
   } catch (err) {

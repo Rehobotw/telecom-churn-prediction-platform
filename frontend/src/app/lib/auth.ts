@@ -134,12 +134,13 @@ export function isAuthenticated() {
   return Boolean(getAuthenticatedSession()?.authenticated);
 }
 
-export async function authenticate(email: string, password: string) {
-  const response = await authRequest<{ success: boolean; data: { email: string } }>("/api/auth/login", {
+export async function authenticate(email: string, password: string, rememberMe = false) {
+  const response = await authRequest<{ success: boolean; data: { email: string; rememberMe: boolean } }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({
       email: email.trim().toLowerCase(),
       password,
+      rememberMe,
     }),
   });
 

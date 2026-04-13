@@ -35,7 +35,7 @@ export function LoginPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await authenticate(email, password);
+      await authenticate(email, password, rememberMe);
       if (rememberMe) {
         window.localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, email.trim().toLowerCase());
       } else {

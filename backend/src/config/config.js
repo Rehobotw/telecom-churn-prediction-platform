@@ -23,6 +23,7 @@ const config = {
   AUTH_SECRET: process.env.AUTH_SECRET || crypto.randomBytes(32).toString('hex'),
   SESSION_COOKIE_NAME: process.env.SESSION_COOKIE_NAME || 'churn_session',
   SESSION_TTL_MS: Number(process.env.SESSION_TTL_MS) || 1000 * 60 * 60 * 8,
+  REMEMBER_ME_TTL_MS: Number(process.env.REMEMBER_ME_TTL_MS) || 1000 * 60 * 60 * 24 * 30,
   COOKIE_SECURE: process.env.COOKIE_SECURE === 'true',
 };
 

@@ -3,11 +3,11 @@ const config = require('../config/config');
 
 const sign = (value) => crypto.createHmac('sha256', config.AUTH_SECRET).update(value).digest('base64url');
 
-const createSessionToken = (email) => {
+const createSessionToken = (email, ttlMs = config.SESSION_TTL_MS) => {
   const payload = Buffer.from(
     JSON.stringify({
       sub: String(email).trim().toLowerCase(),
-      exp: Date.now() + config.SESSION_TTL_MS,
+      exp: Date.now() + ttlMs,
     })
   ).toString('base64url');
 
