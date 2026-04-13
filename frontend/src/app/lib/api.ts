@@ -170,6 +170,7 @@ function mapCustomerRecord(customer: CustomerRecord) {
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
@@ -177,7 +178,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const raw = await response.text();
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw) as { message?: string };
+      message = parsed.message || raw;
+    } catch {}
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
@@ -270,10 +276,16 @@ export async function uploadBatchPredictions(file: File) {
   const response = await fetch(`${API_BASE_URL}/api/batch`, {
     method: "POST",
     body: formData,
+    credentials: "include",
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const raw = await response.text();
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw) as { message?: string };
+      message = parsed.message || raw;
+    } catch {}
     throw new Error(message || `Upload failed with status ${response.status}`);
   }
 

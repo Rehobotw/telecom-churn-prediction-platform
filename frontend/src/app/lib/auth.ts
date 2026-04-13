@@ -7,103 +7,88 @@ export type AccountPreferences = {
 
 export type AccountProfile = {
   email: string;
-  password: string;
   preferences: AccountPreferences;
 };
 
-const DEFAULT_ADMIN_EMAIL =
-  ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_ADMIN_EMAIL ?? "admin@gmail.com")
-    .trim()
-    .toLowerCase();
-const DEFAULT_ADMIN_PASSWORD =
-  (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_ADMIN_PASSWORD ??
-  (import.meta.env.DEV ? "admin123" : "change-me-before-production");
+type SessionState = {
+  authenticated: boolean;
+  email: string;
+  timestamp: string;
+};
 
-const ACCOUNT_STORAGE_KEY = "churn-insights-account-profile";
+const API_BASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const PREFERENCES_STORAGE_KEY = "churn-insights-account-preferences";
 const SESSION_STORAGE_KEY = "churn-insights-auth";
 const REMEMBER_EMAIL_STORAGE_KEY = "churn-insights-remember-email";
 
-const defaultProfile: AccountProfile = {
-  email: DEFAULT_ADMIN_EMAIL,
-  password: DEFAULT_ADMIN_PASSWORD,
-  preferences: {
-    highRiskAlerts: true,
-    dailyReports: false,
-    notificationEmails: [DEFAULT_ADMIN_EMAIL],
-    autoRetrain: "Monthly",
-  },
+const defaultPreferences: AccountPreferences = {
+  highRiskAlerts: true,
+  dailyReports: false,
+  notificationEmails: ["admin@gmail.com"],
+  autoRetrain: "Monthly",
 };
+
+async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw) as { message?: string };
+      message = parsed.message || raw;
+    } catch {}
+    throw new Error(message || `Request failed with status ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-export function getStoredProfile(): AccountProfile {
+function getStoredPreferences(): AccountPreferences {
   if (!canUseStorage()) {
-    return defaultProfile;
+    return defaultPreferences;
   }
 
-  const raw = window.localStorage.getItem(ACCOUNT_STORAGE_KEY);
+  const raw = window.localStorage.getItem(PREFERENCES_STORAGE_KEY);
   if (!raw) {
-    window.localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(defaultProfile));
-    return defaultProfile;
+    window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(defaultPreferences));
+    return defaultPreferences;
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<AccountProfile>;
-    const merged: AccountProfile = {
-      email: parsed.email || defaultProfile.email,
-      password: parsed.password || defaultProfile.password,
-      preferences: {
-        highRiskAlerts:
-          parsed.preferences?.highRiskAlerts ?? defaultProfile.preferences.highRiskAlerts,
-        dailyReports: parsed.preferences?.dailyReports ?? defaultProfile.preferences.dailyReports,
-        notificationEmails:
-          parsed.preferences?.notificationEmails?.filter(Boolean) ??
-          defaultProfile.preferences.notificationEmails,
-        autoRetrain: parsed.preferences?.autoRetrain ?? defaultProfile.preferences.autoRetrain,
-      },
+    const parsed = JSON.parse(raw) as Partial<AccountPreferences>;
+    const merged: AccountPreferences = {
+      highRiskAlerts: parsed.highRiskAlerts ?? defaultPreferences.highRiskAlerts,
+      dailyReports: parsed.dailyReports ?? defaultPreferences.dailyReports,
+      notificationEmails: parsed.notificationEmails?.filter(Boolean) ?? defaultPreferences.notificationEmails,
+      autoRetrain: parsed.autoRetrain ?? defaultPreferences.autoRetrain,
     };
-    window.localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(merged));
+    window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(merged));
     return merged;
   } catch {
-    window.localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(defaultProfile));
-    return defaultProfile;
+    window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(defaultPreferences));
+    return defaultPreferences;
   }
 }
 
-export function saveStoredProfile(profile: AccountProfile) {
+export function updateAccountPreferences(preferences: AccountPreferences) {
   if (!canUseStorage()) {
-    return;
+    return preferences;
   }
-  window.localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(profile));
-}
 
-export function authenticate(email: string, password: string) {
-  const profile = getStoredProfile();
-  const normalizedEmail = email.trim().toLowerCase();
-  return normalizedEmail === profile.email.toLowerCase() && password === profile.password;
-}
-
-export function setAuthenticatedSession(email: string) {
-  if (!canUseStorage()) {
-    return;
-  }
-  window.localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({
-      authenticated: true,
-      email,
-      timestamp: new Date().toISOString(),
-    }),
-  );
-}
-
-export function clearAuthenticatedSession() {
-  if (!canUseStorage()) {
-    return;
-  }
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  return preferences;
 }
 
 export function getAuthenticatedSession() {
@@ -117,48 +102,103 @@ export function getAuthenticatedSession() {
   }
 
   try {
-    return JSON.parse(raw) as { authenticated: boolean; email: string; timestamp: string };
+    return JSON.parse(raw) as SessionState;
   } catch {
     return null;
   }
+}
+
+export function setAuthenticatedSession(email: string) {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    SESSION_STORAGE_KEY,
+    JSON.stringify({
+      authenticated: true,
+      email: email.trim().toLowerCase(),
+      timestamp: new Date().toISOString(),
+    } satisfies SessionState),
+  );
+}
+
+function clearAuthenticatedSessionHint() {
+  if (!canUseStorage()) {
+    return;
+  }
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
 export function isAuthenticated() {
   return Boolean(getAuthenticatedSession()?.authenticated);
 }
 
-export function updateAccountEmail(nextEmail: string) {
-  const profile = getStoredProfile();
-  const updated = {
-    ...profile,
-    email: nextEmail.trim().toLowerCase(),
-  };
-  saveStoredProfile(updated);
-  const session = getAuthenticatedSession();
-  if (session?.authenticated) {
-    setAuthenticatedSession(updated.email);
+export async function authenticate(email: string, password: string) {
+  const response = await authRequest<{ success: boolean; data: { email: string } }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+      password,
+    }),
+  });
+
+  setAuthenticatedSession(response.data.email);
+  return response.data;
+}
+
+export async function validateAuthenticatedSession() {
+  try {
+    const response = await authRequest<{
+      success: boolean;
+      data: { authenticated: boolean; email: string; profile: { email: string } };
+    }>("/api/auth/me");
+
+    setAuthenticatedSession(response.data.email);
+    return response.data;
+  } catch {
+    clearAuthenticatedSessionHint();
+    return null;
   }
-  return updated;
 }
 
-export function updateAccountPassword(nextPassword: string) {
-  const profile = getStoredProfile();
-  const updated = {
-    ...profile,
-    password: nextPassword,
-  };
-  saveStoredProfile(updated);
-  return updated;
+export async function clearAuthenticatedSession() {
+  try {
+    await authRequest("/api/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  } finally {
+    clearAuthenticatedSessionHint();
+  }
 }
 
-export function updateAccountPreferences(preferences: AccountPreferences) {
-  const profile = getStoredProfile();
-  const updated = {
-    ...profile,
-    preferences,
+export async function getAccountProfile(): Promise<AccountProfile> {
+  const session = await validateAuthenticatedSession();
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+
+  return {
+    email: session.profile.email,
+    preferences: getStoredPreferences(),
   };
-  saveStoredProfile(updated);
-  return updated;
+}
+
+export async function updateAccountEmail(nextEmail: string) {
+  const response = await authRequest<{ success: boolean; data: { email: string } }>("/api/auth/email", {
+    method: "PATCH",
+    body: JSON.stringify({ email: nextEmail.trim().toLowerCase() }),
+  });
+  setAuthenticatedSession(response.data.email);
+  return response.data;
+}
+
+export async function updateAccountPassword(currentPassword: string, newPassword: string) {
+  await authRequest("/api/auth/password", {
+    method: "PATCH",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 export { REMEMBER_EMAIL_STORAGE_KEY };

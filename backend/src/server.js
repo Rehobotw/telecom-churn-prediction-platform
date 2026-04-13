@@ -7,7 +7,7 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 
 // Middleware
-app.use(cors({ origin: config.CORS_ORIGIN }));
+app.use(cors({ origin: config.CORS_ORIGINS, credentials: true }));
 app.use(express.json());
 
 // Routes

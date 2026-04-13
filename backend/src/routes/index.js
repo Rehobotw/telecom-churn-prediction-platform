@@ -2,14 +2,19 @@ const express = require('express');
 const router = express.Router();
 
 const healthRoutes = require('./healthRoutes');
+const authRoutes = require('./authRoutes');
 const predictionRoutes = require('./predictionRoutes');
 const batchRoutes = require('./batchRoutes');
 const analyticsRoutes = require('./analyticsRoutes');
 const metricsRoutes = require('./metricsRoutes');
 const modelInfoRoutes = require('./modelInfoRoutes');
 const customerRoutes = require('./customerRoutes');
+const { attachAuth, requireAuth } = require('../middleware/authMiddleware');
 
 router.use('/health', healthRoutes);
+router.use('/auth', authRoutes);
+router.use(attachAuth);
+router.use(requireAuth);
 router.use('/predict', predictionRoutes);
 router.use('/predictions', predictionRoutes);
 router.use('/batch', batchRoutes);

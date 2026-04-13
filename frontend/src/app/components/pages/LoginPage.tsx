@@ -4,8 +4,7 @@ import { TrendingUp, AlertTriangle } from "lucide-react";
 import {
   REMEMBER_EMAIL_STORAGE_KEY,
   authenticate,
-  isAuthenticated,
-  setAuthenticatedSession,
+  validateAuthenticatedSession,
 } from "../../lib/auth";
 
 export function LoginPage() {
@@ -14,6 +13,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_STORAGE_KEY);
@@ -24,15 +24,18 @@ export function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      navigate("/app", { replace: true });
-    }
+    void validateAuthenticatedSession().then((session) => {
+      if (session?.authenticated) {
+        navigate("/app", { replace: true });
+      }
+    });
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (authenticate(email, password)) {
-      setAuthenticatedSession(email.trim().toLowerCase());
+    setIsSubmitting(true);
+    try {
+      await authenticate(email, password);
       if (rememberMe) {
         window.localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, email.trim().toLowerCase());
       } else {
@@ -40,10 +43,11 @@ export function LoginPage() {
       }
       setError("");
       navigate("/app", { replace: true });
-      return;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setError("Invalid email or password. Use the configured admin credentials.");
   };
 
   return (
@@ -119,9 +123,10 @@ export function LoginPage() {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-[#1A56FF] text-white py-2.5 px-4 rounded-lg font-medium hover:bg-[#0f3fb8] transition-colors focus:outline-none focus:ring-2 focus:ring-[#1A56FF] focus:ring-offset-2"
             >
-              Sign In
+              {isSubmitting ? "Signing In..." : "Sign In"}
             </button>
           </form>
         </div>

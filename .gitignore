@@ -23,6 +23,7 @@ venv/
 
 frontend/dist/
 backend/uploads/
+backend/src/data/auth.json
 ml-service/__pycache__/
 ml-service/.ipynb_checkpoints/
 

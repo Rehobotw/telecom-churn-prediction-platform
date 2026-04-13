@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell, Shield, Eye, EyeOff, Mail, Check, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getStoredProfile,
+  getAccountProfile,
   updateAccountEmail,
   updateAccountPassword,
   updateAccountPreferences,
@@ -24,13 +24,33 @@ export function SettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
-    const profile = getStoredProfile();
-    setEmail(profile.email);
-    setHighRiskAlerts(profile.preferences.highRiskAlerts);
-    setDailyReports(profile.preferences.dailyReports);
-    setNotificationEmails(profile.preferences.notificationEmails);
+    let isMounted = true;
+
+    void getAccountProfile()
+      .then((profile) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setEmail(profile.email);
+        setHighRiskAlerts(profile.preferences.highRiskAlerts);
+        setDailyReports(profile.preferences.dailyReports);
+        setNotificationEmails(profile.preferences.notificationEmails);
+        setProfileLoaded(true);
+      })
+      .catch((err) => {
+        if (!isMounted) {
+          return;
+        }
+        toast.error(err instanceof Error ? err.message : "Unable to load account profile.");
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const persistPreferences = (nextPreferences: {
@@ -52,11 +72,9 @@ export function SettingsPage() {
 
   const passwordStrength = getPasswordStrength(newPassword);
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const profile = getStoredProfile();
-  const currentPasswordMatches = currentPassword === profile.password;
-  const canSavePassword = currentPasswordMatches && newPassword.length >= 8 && passwordsMatch;
+  const canSavePassword = currentPassword.length > 0 && newPassword.length >= 8 && passwordsMatch;
 
-  const handleEmailUpdate = () => {
+  const handleEmailUpdate = async () => {
     const normalizedEmail = newEmail.trim().toLowerCase();
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
 
@@ -65,9 +83,10 @@ export function SettingsPage() {
       return;
     }
 
-    const updated = updateAccountEmail(normalizedEmail);
-    setEmail(updated.email);
-    setNotificationEmails((currentEmails) => {
+    try {
+      const updated = await updateAccountEmail(normalizedEmail);
+      setEmail(updated.email);
+      setNotificationEmails((currentEmails) => {
       const nextEmails = currentEmails.includes(normalizedEmail)
         ? currentEmails
         : [normalizedEmail, ...currentEmails];
@@ -77,10 +96,13 @@ export function SettingsPage() {
         notificationEmails: nextEmails,
       });
       return nextEmails;
-    });
-    setShowEmailModal(false);
-    setNewEmail("");
-    toast.success(`Login email updated to ${updated.email}.`);
+      });
+      setShowEmailModal(false);
+      setNewEmail("");
+      toast.success(`Login email updated to ${updated.email}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update email.");
+    }
   };
 
   const addNotificationEmail = () => {
@@ -117,23 +139,26 @@ export function SettingsPage() {
     });
   };
 
-  const handlePasswordChange = () => {
-    if (!currentPasswordMatches) {
-      toast.error("Current password is incorrect.");
-      return;
-    }
-
+  const handlePasswordChange = async () => {
     if (!canSavePassword) {
       toast.error("Password must be at least 8 characters and match confirmation.");
       return;
     }
 
-    updateAccountPassword(newPassword);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    toast.success("Password changed successfully.");
+    try {
+      await updateAccountPassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password changed successfully.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update password.");
+    }
   };
+
+  if (!profileLoaded) {
+    return <div className="p-8 text-sm text-gray-500">Loading account settings...</div>;
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -321,9 +346,6 @@ export function SettingsPage() {
                       {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  {currentPassword && !currentPasswordMatches && (
-                    <div className="mt-2 text-xs text-red-600">Current password does not match the saved credential.</div>
-                  )}
                 </div>
 
                 <div>

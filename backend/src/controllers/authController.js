@@ -1,0 +1,131 @@
+const authService = require('../services/authService');
+const config = require('../config/config');
+const { createSessionToken } = require('../services/sessionService');
+
+const sessionCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: config.COOKIE_SECURE,
+  maxAge: config.SESSION_TTL_MS,
+  path: '/',
+};
+
+const setSessionCookie = (res, email) => {
+  res.cookie(config.SESSION_COOKIE_NAME, createSessionToken(email), sessionCookieOptions);
+};
+
+const clearSessionCookie = (res) => {
+  res.clearCookie(config.SESSION_COOKIE_NAME, {
+    ...sessionCookieOptions,
+    maxAge: undefined,
+  });
+};
+
+const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+
+    const valid = await authService.verifyCredentials(email, password);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    const normalizedEmail = authService.normalizeEmail(email);
+    setSessionCookie(res, normalizedEmail);
+    res.json({
+      success: true,
+      data: {
+        email: normalizedEmail,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const me = async (req, res, next) => {
+  try {
+    const profile = await authService.getPublicProfile();
+    res.json({
+      success: true,
+      data: {
+        authenticated: true,
+        email: req.auth.email,
+        profile,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const logout = async (req, res, next) => {
+  try {
+    clearSessionCookie(res);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const normalizedEmail = authService.normalizeEmail(email);
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    if (!isValidEmail) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address' });
+    }
+
+    const updated = await authService.updateEmail(normalizedEmail);
+    setSessionCookie(res, updated.email);
+    res.json({
+      success: true,
+      data: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updatePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      !currentPassword ||
+      !newPassword
+    ) {
+      return res.status(400).json({ success: false, message: 'Current and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+      });
+    }
+
+    await authService.updatePassword(currentPassword, newPassword);
+    setSessionCookie(res, req.auth.email);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  login,
+  logout,
+  me,
+  updateEmail,
+  updatePassword,
+};

@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Target, Users, BarChart3, Settings, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { clearAuthenticatedSession, isAuthenticated } from "../lib/auth";
+import { clearAuthenticatedSession, validateAuthenticatedSession } from "../lib/auth";
 
 export function MainLayout() {
   const location = useLocation();
@@ -9,12 +9,24 @@ export function MainLayout() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/login", { replace: true });
-      return;
-    }
+    let isMounted = true;
 
-    setAuthReady(true);
+    void validateAuthenticatedSession().then((session) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (!session?.authenticated) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setAuthReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
 
   const navItems = [
@@ -25,8 +37,8 @@ export function MainLayout() {
     { path: "/app/settings", label: "Settings", icon: Settings },
   ];
 
-  const handleLogout = () => {
-    clearAuthenticatedSession();
+  const handleLogout = async () => {
+    await clearAuthenticatedSession();
     navigate("/login", { replace: true });
   };
 
