@@ -28,8 +28,6 @@ export function LoginPage() {
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [resetExpiresAt, setResetExpiresAt] = useState("");
-  const [generatedResetCode, setGeneratedResetCode] = useState("");
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
   const [isResetRequestSubmitting, setIsResetRequestSubmitting] = useState(false);
@@ -80,12 +78,9 @@ export function LoginPage() {
     try {
       const response = await requestPasswordReset(resetEmail);
       setResetEmail(response.email);
-      setResetCode(response.resetCode);
-      setGeneratedResetCode(response.resetCode);
-      setResetExpiresAt(response.expiresAt);
-      setResetSuccess("Reset code generated. Use it below to set a new password.");
+      setResetSuccess("If the account exists, a reset code has been sent to the inbox.");
     } catch (err) {
-      setResetError(err instanceof Error ? err.message : "Unable to generate reset code.");
+      setResetError(err instanceof Error ? err.message : "Unable to request password reset.");
     } finally {
       setIsResetRequestSubmitting(false);
     }
@@ -113,11 +108,9 @@ export function LoginPage() {
       setEmail(response.email);
       setPassword("");
       setShowForgotPassword(false);
-      setGeneratedResetCode("");
       setResetCode("");
       setNewPassword("");
       setConfirmPassword("");
-      setResetExpiresAt("");
       setResetSuccess("");
       setError("Password reset complete. Sign in with your new password.");
     } catch (err) {
@@ -219,22 +212,25 @@ export function LoginPage() {
       </div>
 
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-gray-900">
               <KeyRound className="h-5 w-5 text-[#1A56FF]" />
               Reset password
             </DialogTitle>
             <DialogDescription className="text-gray-500">
-              This deployment does not have email delivery configured, so the reset code is generated in-app and expires after 15 minutes.
+              Request a password reset code. If the account exists, a code is sent to your email and expires after 15 minutes.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <form onSubmit={handleRequestReset} className="space-y-4 rounded-xl border border-[#E5E7EB] p-4">
-              <div>
-                <div className="text-sm font-medium text-gray-900">1. Request reset code</div>
-                <div className="mt-1 text-xs text-gray-500">Use the configured administrator email for this deployment.</div>
+          <div className="space-y-4">
+            <form onSubmit={handleRequestReset} className="space-y-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#E8F0FF] text-xs font-semibold text-[#1A56FF]">1</span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Request reset code</div>
+                  <div className="mt-1 text-xs text-gray-500">Use your account email. The code is delivered by email only.</div>
+                </div>
               </div>
 
               <div>
@@ -252,27 +248,22 @@ export function LoginPage() {
                 />
               </div>
 
-              {generatedResetCode && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-950">
-                  <div className="font-medium">Reset code</div>
-                  <div className="mt-1 font-mono text-lg tracking-[0.24em]">{generatedResetCode}</div>
-                  <div className="mt-1 text-xs text-blue-800">Expires at {new Date(resetExpiresAt).toLocaleString()}</div>
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={isResetRequestSubmitting}
                 className="w-full bg-[#1A56FF] text-white py-2.5 px-4 rounded-lg font-medium hover:bg-[#0f3fb8] transition-colors focus:outline-none focus:ring-2 focus:ring-[#1A56FF] focus:ring-offset-2 disabled:opacity-70"
               >
-                {isResetRequestSubmitting ? "Generating..." : "Generate reset code"}
+                {isResetRequestSubmitting ? "Sending..." : "Send reset code"}
               </button>
             </form>
 
             <form onSubmit={handleResetPassword} className="space-y-4 rounded-xl border border-[#E5E7EB] p-4">
-              <div>
-                <div className="text-sm font-medium text-gray-900">2. Set new password</div>
-                <div className="mt-1 text-xs text-gray-500">Enter the reset code and choose a password with at least 8 characters.</div>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">2</span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Set new password</div>
+                  <div className="mt-1 text-xs text-gray-500">Enter the email reset code and choose a new password.</div>
+                </div>
               </div>
 
               <div>

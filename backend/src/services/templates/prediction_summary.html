@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prediction Summary</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+            <tr>
+              <td>
+                <h2 style="margin:0 0 10px;font-size:22px;color:#111827;">Prediction Summary</h2>
+                <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+                  {{PREDICTION_TYPE}} summary generated at {{GENERATED_AT}}.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                  <tr><td style="padding:8px 0;color:#6b7280;font-size:13px;">Total predictions</td><td align="right" style="padding:8px 0;font-size:14px;font-weight:600;color:#111827;">{{TOTAL_COUNT}}</td></tr>
+                  <tr><td style="padding:8px 0;color:#6b7280;font-size:13px;">High risk</td><td align="right" style="padding:8px 0;font-size:14px;font-weight:600;color:#b91c1c;">{{HIGH_COUNT}}</td></tr>
+                  <tr><td style="padding:8px 0;color:#6b7280;font-size:13px;">Medium risk</td><td align="right" style="padding:8px 0;font-size:14px;font-weight:600;color:#b45309;">{{MEDIUM_COUNT}}</td></tr>
+                  <tr><td style="padding:8px 0;color:#6b7280;font-size:13px;">Low risk</td><td align="right" style="padding:8px 0;font-size:14px;font-weight:600;color:#047857;">{{LOW_COUNT}}</td></tr>
+                  <tr><td style="padding:8px 0;color:#6b7280;font-size:13px;">Average churn probability</td><td align="right" style="padding:8px 0;font-size:14px;font-weight:600;color:#111827;">{{AVERAGE_PROBABILITY}}</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

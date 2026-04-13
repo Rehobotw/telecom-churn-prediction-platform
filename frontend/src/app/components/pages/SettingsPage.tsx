@@ -53,13 +53,20 @@ export function SettingsPage() {
     };
   }, []);
 
-  const persistPreferences = (nextPreferences: {
+  const persistPreferences = async (nextPreferences: {
     highRiskAlerts: boolean;
     dailyReports: boolean;
     notificationEmails: string[];
   }) => {
-    updateAccountPreferences(nextPreferences);
-    toast.success("Settings updated.");
+    try {
+      const saved = await updateAccountPreferences(nextPreferences);
+      setHighRiskAlerts(saved.highRiskAlerts);
+      setDailyReports(saved.dailyReports);
+      setNotificationEmails(saved.notificationEmails);
+      toast.success("Settings updated.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update settings.");
+    }
   };
 
   const getPasswordStrength = (password: string) => {
@@ -86,16 +93,13 @@ export function SettingsPage() {
     try {
       const updated = await updateAccountEmail(normalizedEmail);
       setEmail(updated.email);
-      setNotificationEmails((currentEmails) => {
-      const nextEmails = currentEmails.includes(normalizedEmail)
-        ? currentEmails
-        : [normalizedEmail, ...currentEmails];
-      updateAccountPreferences({
+      const nextEmails = notificationEmails.includes(normalizedEmail)
+        ? notificationEmails
+        : [normalizedEmail, ...notificationEmails];
+      await persistPreferences({
         highRiskAlerts,
         dailyReports,
         notificationEmails: nextEmails,
-      });
-      return nextEmails;
       });
       setShowEmailModal(false);
       setNewEmail("");
@@ -122,7 +126,7 @@ export function SettingsPage() {
     const nextEmails = [...notificationEmails, normalizedEmail];
     setNotificationEmails(nextEmails);
     setNotificationEmailInput("");
-    persistPreferences({
+    void persistPreferences({
       highRiskAlerts,
       dailyReports,
       notificationEmails: nextEmails,
@@ -132,7 +136,7 @@ export function SettingsPage() {
   const removeNotificationEmail = (emailToRemove: string) => {
     const nextEmails = notificationEmails.filter((value) => value !== emailToRemove);
     setNotificationEmails(nextEmails);
-    persistPreferences({
+    void persistPreferences({
       highRiskAlerts,
       dailyReports,
       notificationEmails: nextEmails,
@@ -192,7 +196,7 @@ export function SettingsPage() {
                   onChange={(e) => {
                     const nextValue = e.target.checked;
                     setHighRiskAlerts(nextValue);
-                    persistPreferences({ highRiskAlerts: nextValue, dailyReports, notificationEmails });
+                    void persistPreferences({ highRiskAlerts: nextValue, dailyReports, notificationEmails });
                   }}
                   className="sr-only peer"
                 />
@@ -212,7 +216,7 @@ export function SettingsPage() {
                   onChange={(e) => {
                     const nextValue = e.target.checked;
                     setDailyReports(nextValue);
-                    persistPreferences({ highRiskAlerts, dailyReports: nextValue, notificationEmails });
+                    void persistPreferences({ highRiskAlerts, dailyReports: nextValue, notificationEmails });
                   }}
                   className="sr-only peer"
                 />

@@ -28,6 +28,10 @@ Then adjust values as needed:
 - `PORT`: Port for the Node.js server (default: `3000`)
 - `ML_SERVICE_URL`: Base URL of the Python ML service (default: `http://localhost:8000`)
 - `CUSTOMERS_FILE`: Path to customers.json (default: `src/data/customers.json`)
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM`: SMTP settings for password reset and notification emails
+- `EMAIL_RETRY_ATTEMPTS`: Number of retries for SMTP send failures
+- `RESET_CODE_TTL_MINUTES`: Password reset code expiry (default `15`)
+- `RESET_REQUEST_WINDOW_MS` and `RESET_REQUEST_MAX_ATTEMPTS`: Rate limiting for forgot-password requests
 
 ## Running the server
 
@@ -111,6 +115,13 @@ The API will be available at `http://localhost:3000` (or your configured port).
 - **GET** `/api/customers`
 - **Query params**: `search`, `risk`, `contractType`
 - **Response**: List of stored customer records
+
+### Auth and Notification Settings
+
+- **POST** `/api/auth/forgot-password`: Sends reset code by email (does not return code in response)
+- **POST** `/api/auth/reset-password`: Completes password reset using emailed code
+- **PATCH** `/api/auth/preferences`: Updates notification settings (`highRiskAlerts`, `dailyReports`, `notificationEmails`)
+- **POST** `/api/auth/test-email`: Sends a test email to verify SMTP configuration
 
 ## Data Flow
 

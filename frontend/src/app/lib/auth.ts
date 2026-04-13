@@ -12,8 +12,6 @@ export type AccountProfile = {
 
 type ForgotPasswordResponse = {
   email: string;
-  resetCode: string;
-  expiresAt: string;
 };
 
 type SessionState = {
@@ -88,13 +86,20 @@ function getStoredPreferences(): AccountPreferences {
   }
 }
 
-export function updateAccountPreferences(preferences: AccountPreferences) {
-  if (!canUseStorage()) {
-    return preferences;
+export async function updateAccountPreferences(preferences: AccountPreferences) {
+  const response = await authRequest<{ success: boolean; data: AccountPreferences }>(
+    "/api/auth/preferences",
+    {
+      method: "PATCH",
+      body: JSON.stringify(preferences),
+    },
+  );
+
+  if (canUseStorage()) {
+    window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(response.data));
   }
 
-  window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
-  return preferences;
+  return response.data;
 }
 
 export function getAuthenticatedSession() {
@@ -158,10 +163,15 @@ export async function validateAuthenticatedSession() {
   try {
     const response = await authRequest<{
       success: boolean;
-      data: { authenticated: boolean; email: string; profile: { email: string } };
+      data: { authenticated: boolean; email: string; profile: { email: string; preferences: AccountPreferences } };
     }>("/api/auth/me");
 
     setAuthenticatedSession(response.data.email);
+
+    if (canUseStorage()) {
+      window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(response.data.profile.preferences));
+    }
+
     return response.data;
   } catch {
     clearAuthenticatedSessionHint();
@@ -188,7 +198,7 @@ export async function getAccountProfile(): Promise<AccountProfile> {
 
   return {
     email: session.profile.email,
-    preferences: getStoredPreferences(),
+    preferences: session.profile.preferences ?? getStoredPreferences(),
   };
 }
 

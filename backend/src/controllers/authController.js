@@ -1,6 +1,7 @@
 const authService = require('../services/authService');
 const config = require('../config/config');
 const { createSessionToken } = require('../services/sessionService');
+const emailService = require('../services/emailService');
 
 const baseSessionCookieOptions = {
   httpOnly: true,
@@ -138,16 +139,63 @@ const requestPasswordReset = async (req, res, next) => {
     }
 
     const normalizedEmail = authService.normalizeEmail(email);
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    const isValidEmail = emailService.isValidEmail(normalizedEmail);
     if (!isValidEmail) {
       return res.status(400).json({ success: false, message: 'Enter a valid email address' });
     }
 
-    const reset = await authService.requestPasswordReset(normalizedEmail);
+    const reset = await authService.requestPasswordReset(normalizedEmail, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent') || 'unknown',
+    });
     res.json({
       success: true,
       data: reset,
-      message: 'Password reset code generated',
+      message: 'If the account exists, a reset code has been sent by email',
+    });
+  } catch (err) {
+    console.error('[auth] forgot-password email delivery failed:', err?.message || err);
+    return res.json({
+      success: true,
+      data: { email: authService.normalizeEmail(req.body?.email || '') },
+      message: 'If the account exists, a reset code has been sent by email',
+    });
+  }
+};
+
+const updatePreferences = async (req, res, next) => {
+  try {
+    const preferences = await authService.updatePreferences(req.body || {});
+    res.json({
+      success: true,
+      data: preferences,
+      message: 'Notification settings updated',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const sendTestEmail = async (req, res, next) => {
+  try {
+    const { toEmail, subject } = req.body || {};
+    const recipient = typeof toEmail === 'string' && toEmail.trim() ? toEmail.trim().toLowerCase() : req.auth.email;
+    if (!emailService.isValidEmail(recipient)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid recipient email address' });
+    }
+
+    await emailService.sendEmail(
+      recipient,
+      typeof subject === 'string' && subject.trim() ? subject.trim() : 'Churn Insights SMTP Test',
+      '<p>This is a test email from Churn Insights SMTP integration.</p>'
+    );
+
+    res.json({
+      success: true,
+      data: {
+        toEmail: recipient,
+      },
+      message: 'Test email delivered successfully',
     });
   } catch (err) {
     next(err);
@@ -196,6 +244,8 @@ module.exports = {
   me,
   requestPasswordReset,
   resetPassword,
+  sendTestEmail,
   updateEmail,
+  updatePreferences,
   updatePassword,
 };
