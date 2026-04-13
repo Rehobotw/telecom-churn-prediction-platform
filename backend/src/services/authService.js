@@ -8,6 +8,9 @@ const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 const hashPassword = (password, salt) =>
   crypto.scryptSync(String(password), salt, 64).toString('hex');
 
+const hashSecret = (value, salt) =>
+  crypto.scryptSync(String(value), salt, 64).toString('hex');
+
 const createPasswordRecord = (password) => {
   const salt = crypto.randomBytes(16).toString('hex');
   return {
@@ -22,6 +25,17 @@ const safeEqual = (left, right) => {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 };
 
+const createResetRecord = (code) => {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return {
+    salt,
+    hash: hashSecret(code, salt),
+    expiresAt: new Date(Date.now() + 1000 * 60 * 15).toISOString(),
+  };
+};
+
+const generateResetCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+
 const ensureAuthFile = async () => {
   try {
     await fs.access(config.AUTH_FILE);
@@ -33,6 +47,7 @@ const ensureAuthFile = async () => {
     const defaultProfile = {
       email: config.ADMIN_EMAIL,
       password: createPasswordRecord(config.ADMIN_PASSWORD),
+      passwordReset: null,
     };
 
     await fs.mkdir(path.dirname(config.AUTH_FILE), { recursive: true });
@@ -58,6 +73,13 @@ const readAuthProfile = async () => {
   return {
     email: normalizeEmail(profile.email),
     password: profile.password,
+    passwordReset:
+      profile.passwordReset &&
+      typeof profile.passwordReset.salt === 'string' &&
+      typeof profile.passwordReset.hash === 'string' &&
+      typeof profile.passwordReset.expiresAt === 'string'
+        ? profile.passwordReset
+        : null,
   };
 };
 
@@ -69,6 +91,7 @@ const writeAuthProfile = async (profile) => {
       {
         email: normalizeEmail(profile.email),
         password: profile.password,
+        passwordReset: profile.passwordReset ?? null,
       },
       null,
       2
@@ -94,6 +117,7 @@ const verifyCredentials = async (email, password) => {
 const updateEmail = async (nextEmail) => {
   const profile = await readAuthProfile();
   profile.email = normalizeEmail(nextEmail);
+  profile.passwordReset = null;
   await writeAuthProfile(profile);
   return { email: profile.email };
 };
@@ -108,12 +132,74 @@ const updatePassword = async (currentPassword, nextPassword) => {
   }
 
   profile.password = createPasswordRecord(nextPassword);
+  profile.passwordReset = null;
   await writeAuthProfile(profile);
+};
+
+const requestPasswordReset = async (email) => {
+  const profile = await readAuthProfile();
+  const normalizedEmail = normalizeEmail(email);
+
+  if (normalizedEmail !== profile.email) {
+    const error = new Error('No account found for that email address');
+    error.status = 404;
+    throw error;
+  }
+
+  const code = generateResetCode();
+  profile.passwordReset = createResetRecord(code);
+  await writeAuthProfile(profile);
+
+  return {
+    email: profile.email,
+    resetCode: code,
+    expiresAt: profile.passwordReset.expiresAt,
+  };
+};
+
+const resetPassword = async (email, resetCode, nextPassword) => {
+  const profile = await readAuthProfile();
+  const normalizedEmail = normalizeEmail(email);
+
+  if (normalizedEmail !== profile.email) {
+    const error = new Error('Invalid reset request');
+    error.status = 400;
+    throw error;
+  }
+
+  if (!profile.passwordReset) {
+    const error = new Error('No active password reset request was found');
+    error.status = 400;
+    throw error;
+  }
+
+  if (Date.parse(profile.passwordReset.expiresAt) <= Date.now()) {
+    profile.passwordReset = null;
+    await writeAuthProfile(profile);
+    const error = new Error('Reset code has expired. Request a new code and try again');
+    error.status = 400;
+    throw error;
+  }
+
+  const candidateHash = hashSecret(resetCode, profile.passwordReset.salt);
+  if (!safeEqual(candidateHash, profile.passwordReset.hash)) {
+    const error = new Error('Invalid reset code');
+    error.status = 400;
+    throw error;
+  }
+
+  profile.password = createPasswordRecord(nextPassword);
+  profile.passwordReset = null;
+  await writeAuthProfile(profile);
+
+  return { email: profile.email };
 };
 
 module.exports = {
   getPublicProfile,
   normalizeEmail,
+  requestPasswordReset,
+  resetPassword,
   verifyCredentials,
   updateEmail,
   updatePassword,

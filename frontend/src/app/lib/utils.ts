@@ -1,6 +1,6 @@
-export function getRiskLevel(probability: number, threshold: number = 0.5): string {
-  if (probability >= threshold) return "High";
-  if (probability >= threshold - 0.2) return "Medium";
+export function getRiskLevel(probability: number): string {
+  if (probability >= 0.67) return "High";
+  if (probability >= 0.34) return "Medium";
   return "Low";
 }
 
@@ -20,11 +20,24 @@ export function getRiskColor(riskLevel: string): string {
 export function getActionInsight(riskLevel: string): string {
   switch (riskLevel) {
     case "High":
-      return "Consider immediate retention outreach.";
+      return "Immediate retention action is required: prioritize outreach, service recovery, and targeted commercial intervention.";
     case "Medium":
-      return "Monitor closely and consider retention strategy.";
+      return "Use proactive support, journey remediation, and targeted communication before issues become irreversible.";
     case "Low":
-      return "Customer is low risk, continue monitoring.";
+      return "Keep the customer in standard engagement and monitoring flows without consuming scarce retention capacity.";
+    default:
+      return "";
+  }
+}
+
+export function getRiskBandRange(riskLevel: string): string {
+  switch (riskLevel) {
+    case "High":
+      return "0.67 - 1.00";
+    case "Medium":
+      return "0.34 - 0.66";
+    case "Low":
+      return "0.00 - 0.33";
     default:
       return "";
   }

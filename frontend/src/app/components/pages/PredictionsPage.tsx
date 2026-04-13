@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { getActionInsight, formatPercent, formatCurrency } from "../../lib/utils";
+import { getActionInsight, getRiskBandRange, formatPercent, formatCurrency } from "../../lib/utils";
 import {
   createPrediction,
   uploadBatchPredictions,
@@ -299,24 +299,52 @@ export function PredictionsPage() {
       level: "High",
       icon: ShieldAlert,
       accent: "border-red-200 bg-red-50 text-red-900",
-      description: "Prioritize immediate outreach, save offers, and manager review within 24 hours.",
+      description: "Immediate retention offer, priority outreach, service recovery, and commercial intervention should be actioned first.",
       count: batchSummary.high,
     },
     {
       level: "Medium",
       icon: ShieldEllipsis,
       accent: "border-amber-200 bg-amber-50 text-amber-900",
-      description: "Queue proactive engagement and monitor payment, usage, or contract-change signals.",
+      description: "Route to proactive support, journey remediation, targeted messaging, and lower-cost interventions first.",
       count: batchSummary.medium,
     },
     {
       level: "Low",
       icon: ShieldCheck,
       accent: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      description: "Keep in standard retention programs and re-score during the next review cycle.",
+      description: "Keep in standard engagement, automated nurturing, and monitoring unless risk materially changes.",
       count: batchSummary.low,
     },
   ] as const;
+
+  const singlePredictionTheme =
+    prediction?.riskLevel === "High"
+      ? {
+          panel: "border-red-200 bg-red-50/80",
+          accent: "bg-red-500",
+          label: "text-red-900",
+          sublabel: "text-red-700",
+          chip: "bg-red-100 text-red-800 border-red-200",
+          action: "border-red-200 bg-white/80",
+        }
+      : prediction?.riskLevel === "Medium"
+        ? {
+            panel: "border-amber-200 bg-amber-50/80",
+            accent: "bg-amber-500",
+            label: "text-amber-900",
+            sublabel: "text-amber-700",
+            chip: "bg-amber-100 text-amber-800 border-amber-200",
+            action: "border-amber-200 bg-white/80",
+          }
+        : {
+            panel: "border-emerald-200 bg-emerald-50/80",
+            accent: "bg-emerald-500",
+            label: "text-emerald-900",
+            sublabel: "text-emerald-700",
+            chip: "bg-emerald-100 text-emerald-800 border-emerald-200",
+            action: "border-emerald-200 bg-white/80",
+          };
 
   return (
     <div className="p-8 space-y-6">
@@ -679,33 +707,55 @@ export function PredictionsPage() {
 
               {requestStatus === "success" && prediction && (
                 <div className="border-t border-[#E5E7EB] pt-6">
-                  <div className="relative overflow-hidden rounded-2xl border border-cyan-400/50 bg-[#020617] p-6 space-y-4 shadow-[0_0_36px_rgba(34,211,238,0.2)]">
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.2),transparent_38%)]" />
-                    <div className="flex items-center justify-between">
-                      <div className="relative">
-                        <div className="text-sm text-cyan-200/80 mb-1">Probability Score</div>
-                        <div className="text-4xl font-semibold text-white tracking-tight">{formatPercent(prediction.probability)} Churn Risk</div>
+                  <div className={`relative overflow-hidden rounded-2xl border p-6 shadow-sm ${singlePredictionTheme.panel}`}>
+                    <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${singlePredictionTheme.accent}`} />
+                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-gray-500">Prediction Result</div>
+                        <h3 className="mt-1 text-2xl font-semibold text-gray-900">Customer risk snapshot</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          The model has completed scoring for the submitted customer profile.
+                        </p>
                       </div>
-                      <div className="relative flex items-center gap-2 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-emerald-200">
+                      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${singlePredictionTheme.chip}`}>
                         <CheckCircle2 className="h-4 w-4" />
-                        <span className="text-xs font-medium uppercase tracking-wide">Prediction ready</span>
+                        Prediction ready
                       </div>
                     </div>
 
-                    <div className="relative">
-                      <RiskBadge riskLevel={prediction.riskLevel} />
-                    </div>
+                    <div className="relative grid grid-cols-1 gap-4 lg:grid-cols-3">
+                      <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+                        <div className="text-xs uppercase tracking-[0.16em] text-gray-500">Churn probability</div>
+                        <div className={`mt-2 text-4xl font-semibold tracking-tight ${singlePredictionTheme.label}`}>
+                          {formatPercent(prediction.probability)}
+                        </div>
+                        <div className={`mt-1 text-sm ${singlePredictionTheme.sublabel}`}>Likelihood of churn</div>
+                      </div>
 
-                    <div className="relative border-t border-cyan-500/20 pt-4">
-                      <div className="text-sm text-cyan-100/80 mb-1">Prediction</div>
-                      <div className="text-lg font-semibold text-white">
-                        {prediction.prediction ? "Will Churn" : "Will Not Churn"}
+                      <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+                        <div className="text-xs uppercase tracking-[0.16em] text-gray-500">Prediction</div>
+                        <div className="mt-2 text-xl font-semibold text-gray-900">
+                          {prediction.prediction ? "Will Churn" : "Will Not Churn"}
+                        </div>
+                        <div className="mt-3">
+                          <RiskBadge riskLevel={prediction.riskLevel} />
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+                        <div className="text-xs uppercase tracking-[0.16em] text-gray-500">Customer</div>
+                        <div className="mt-2 text-lg font-semibold text-gray-900">{formData.customerName || "Unknown customer"}</div>
+                        <div className="mt-1 text-sm text-gray-500">{formData.email || "No email provided"}</div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1">Tenure: {formData.tenure || "--"} months</span>
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1">Monthly: {formData.monthlyCharges || "--"}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="relative rounded-lg border border-cyan-500/30 bg-cyan-400/10 p-4">
-                      <div className="text-sm font-medium text-cyan-100 mb-1">Action Insight</div>
-                      <div className="text-sm text-slate-100">{getActionInsight(prediction.riskLevel)}</div>
+                    <div className={`relative rounded-xl border p-4 ${singlePredictionTheme.action}`}>
+                      <div className="text-sm font-medium text-gray-900">Action insight</div>
+                      <div className="mt-1 text-sm leading-6 text-gray-600">{getActionInsight(prediction.riskLevel)}</div>
                     </div>
                   </div>
                 </div>
@@ -809,6 +859,9 @@ export function PredictionsPage() {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold">{item.level} Risk</span>
+                                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
+                                      {getRiskBandRange(item.level)}
+                                    </span>
                                     <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
                                       {item.count} customers
                                     </span>

@@ -5,6 +5,8 @@ const { attachAuth, requireAuth } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 router.post('/login', authController.login);
+router.post('/forgot-password', authController.requestPasswordReset);
+router.post('/reset-password', authController.resetPassword);
 router.post('/logout', attachAuth, authController.logout);
 router.get('/me', attachAuth, requireAuth, authController.me);
 router.patch('/email', attachAuth, requireAuth, authController.updateEmail);

@@ -10,6 +10,12 @@ export type AccountProfile = {
   preferences: AccountPreferences;
 };
 
+type ForgotPasswordResponse = {
+  email: string;
+  resetCode: string;
+  expiresAt: string;
+};
+
 type SessionState = {
   authenticated: boolean;
   email: string;
@@ -200,6 +206,34 @@ export async function updateAccountPassword(currentPassword: string, newPassword
     method: "PATCH",
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+}
+
+export async function requestPasswordReset(email: string) {
+  const response = await authRequest<{ success: boolean; data: ForgotPasswordResponse; message?: string }>(
+    "/api/auth/forgot-password",
+    {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    },
+  );
+
+  return response.data;
+}
+
+export async function resetPassword(email: string, resetCode: string, newPassword: string) {
+  const response = await authRequest<{ success: boolean; data: { email: string }; message?: string }>(
+    "/api/auth/reset-password",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        resetCode: resetCode.trim(),
+        newPassword,
+      }),
+    },
+  );
+
+  return response.data;
 }
 
 export { REMEMBER_EMAIL_STORAGE_KEY };

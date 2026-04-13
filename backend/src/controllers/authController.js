@@ -130,10 +130,72 @@ const updatePassword = async (req, res, next) => {
   }
 };
 
+const requestPasswordReset = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const normalizedEmail = authService.normalizeEmail(email);
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    if (!isValidEmail) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address' });
+    }
+
+    const reset = await authService.requestPasswordReset(normalizedEmail);
+    res.json({
+      success: true,
+      data: reset,
+      message: 'Password reset code generated',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, resetCode, newPassword } = req.body || {};
+    if (
+      typeof email !== 'string' ||
+      !email.trim() ||
+      typeof resetCode !== 'string' ||
+      !resetCode.trim() ||
+      typeof newPassword !== 'string' ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, reset code, and new password are required',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+      });
+    }
+
+    const updated = await authService.resetPassword(email, resetCode.trim(), newPassword);
+    clearSessionCookie(res);
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Password updated successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   login,
   logout,
   me,
+  requestPasswordReset,
+  resetPassword,
   updateEmail,
   updatePassword,
 };
