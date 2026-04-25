@@ -1,0 +1,44 @@
+[
+  {
+    "customerId": "183825e0-7e59-4b4c-b09c-7def8a13b468",
+    "churnProbability": 0.82,
+    "churnPrediction": true,
+    "riskLevel": "High",
+    "timestamp": "2026-04-12T14:20:49.919Z",
+    "customerData": {
+      "tenure": 12,
+      "monthlyCharges": 70,
+      "contractType": "month-to-month",
+      "internetService": "fiber optic",
+      "paymentMethod": "electronic check"
+    }
+  },
+  {
+    "customerId": "3bc2c4af-ee42-41d9-a3eb-5c270da7bf1b",
+    "churnProbability": 0.82,
+    "churnPrediction": true,
+    "riskLevel": "High",
+    "timestamp": "2026-04-12T18:23:24.465Z",
+    "customerData": {
+      "tenure": 12,
+      "monthlyCharges": 70,
+      "contractType": "month-to-month",
+      "internetService": "fiber optic",
+      "paymentMethod": "electronic check"
+    }
+  },
+  {
+    "customerId": "330a9082-0522-4927-85ee-44cc003910e1",
+    "churnProbability": 0.82,
+    "churnPrediction": true,
+    "riskLevel": "High",
+    "timestamp": "2026-04-12T18:23:33.331Z",
+    "customerData": {
+      "tenure": 12,
+      "monthlyCharges": 70,
+      "contractType": "month-to-month",
+      "internetService": "fiber optic",
+      "paymentMethod": "electronic check"
+    }
+  }
+]

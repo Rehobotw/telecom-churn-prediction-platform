@@ -1,47 +1,126 @@
-# Telecom Churn Prediction Platform
+# Telecom Churn Prediction Backend
 
-This repo runs as three parts:
-- `frontend`: Vite/React dashboard
-- `backend`: Express API gateway and persistence layer
-- `ml-service`: FastAPI inference and analytics service
+Node.js/Express backend for a Telecom Customer Churn Prediction platform.
 
-The platform now opens on the login page first. After successful authentication, the dashboard lives under `/app`.
+## Requirements
 
-## Local Run
+- Node.js (LTS recommended)
+- npm
+- A running Python ML API at `http://localhost:5000` (or another URL you configure)
 
-Run each service in its own terminal:
+## Setup
 
-```bash
-cd ml-service && pip install -r requirements.txt && uvicorn app:app --reload --host 0.0.0.0 --port 8000
-```
+1. Install dependencies:
 
 ```bash
-cd backend && npm install && npm start
+cd backend
+npm install
 ```
+
+2. Create a `.env` file in the backend root based on `.env.example`:
 
 ```bash
-cd frontend && npm install && npm run dev
+cp .env.example .env
 ```
 
-Frontend requests are proxied to the backend at `/api`, and the backend forwards ML requests to `http://localhost:8000`.
+Then adjust values as needed:
 
-Create local environment files from the shipped examples before running in development:
+- `PORT`: Port for the Node.js server (default: `3000`)
+- `ML_SERVICE_URL`: Base URL of the Python ML service (default: `http://localhost:5000`)
+- `CUSTOMERS_FILE`: Path to customers.json (default: `src/data/customers.json`)
+
+## Running the server
+
+Start the server:
 
 ```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-cp ml-service/.env.example ml-service/.env
+cd backend
+npm start
 ```
 
-## Docker Compose
+The API will be available at `http://localhost:3000` (or your configured port).
 
-You can build and start the full stack with:
+## API Endpoints
 
-```bash
-docker compose up --build
+### Health Check
+
+- **GET** `/api/health`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "status": "ok",
+      "service": "telecom-churn-backend",
+      "timestamp": "2026-04-12T00:00:00.000Z"
+    }
+  }
+  ```
+
+### Single Prediction
+
+- **POST** `/api/predict`
+- **Request body (JSON)**:
+
+```json
+{
+  "tenure": 12,
+  "monthlyCharges": 70.5,
+  "contractType": "month-to-month",
+  "internetService": "fiber optic",
+  "paymentMethod": "electronic check",
+  "name": "John Doe",
+  "email": "john@example.com"
+}
 ```
 
-Services:
-- Frontend: `http://localhost`
-- Backend API: `http://localhost:3000/api`
-- ML service: `http://localhost:8000`
+- **Validation**: Required fields: tenure, monthlyCharges, contractType, internetService, paymentMethod
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "customerId": "CUST-001",
+      "churnProbability": 0.82,
+      "churnPrediction": true,
+      "riskLevel": "High",
+      "timestamp": "2026-04-12T00:00:00.000Z",
+      "customerData": { ... }
+    }
+  }
+  ```
+
+### Batch Prediction
+
+- **POST** `/api/batch`
+- **Request**: Multipart form-data with `file` field containing CSV
+- **Response**: JSON with processed data and CSV download link
+
+### Analytics
+
+- **GET** `/api/analytics`
+- **Response**: Dashboard analytics data from ML service
+
+### Metrics
+
+- **GET** `/api/metrics`
+- **Response**: Model performance metrics from ML service
+
+### Customers
+
+- **GET** `/api/customers`
+- **Query params**: `search`, `risk`, `contractType`
+- **Response**: List of stored customer records
+
+## Data Flow
+
+1. Frontend sends requests to backend API endpoints.
+2. Backend validates requests and forwards to ML service where needed.
+3. Backend stores prediction results in local JSON file.
+4. Backend serves stored data for customer management and dashboard.
+
+## Error Handling
+
+- Invalid input returns **400** with validation error details.
+- Errors from the ML service are mapped to **5xx** responses.
+- Unknown routes return **404**.
