@@ -1,34 +1,68 @@
 node_modules/
 **/node_modules/
 
+# Local environment and secrets
 .env
 .env.*
 !.env.example
 **/.env
 **/.env.*
 !**/.env.example
+*.pem
+*.key
+*.crt
+secrets/
 
+# JavaScript build output and caches
 dist/
 build/
 coverage/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+.next/
+.turbo/
 
+# Python caches and virtual environments
 __pycache__/
 *.pyc
+.python-version
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
+env/
 
+# App runtime data
 frontend/dist/
+frontend/.vite/
 backend/uploads/
 backend/src/data/auth.json
+backend/src/data/*.tmp
 ml-service/__pycache__/
 ml-service/.ipynb_checkpoints/
+ml-service/uploads/
 
+# Dataset outputs
 data/raw/*.csv
 data/processed/*.csv
+data/interim/
+data/external/
 
+# Notebooks
+.ipynb_checkpoints/
+
+# Docker and OS/editor noise
+docker-compose.override.yml
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

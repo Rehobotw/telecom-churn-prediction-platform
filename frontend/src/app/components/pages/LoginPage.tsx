@@ -145,12 +145,6 @@ export function LoginPage() {
             </div>
             <h1 className="font-semibold text-2xl text-gray-900">Churn Insights</h1>
             <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
-            <div className="mt-4 w-full rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-left">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Access</div>
-              <div className="mt-2 text-sm text-blue-950">
-                Use the administrator credentials configured for this deployment.
-              </div>
-            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -234,7 +228,7 @@ export function LoginPage() {
               Reset password
             </DialogTitle>
             <DialogDescription className="text-gray-500">
-              Request a password reset code. If the account exists, a code is sent to your email and expires after 15 minutes.
+              Request a password reset code for the administrator account. The code expires after 15 minutes.
             </DialogDescription>
           </DialogHeader>
 
@@ -244,7 +238,7 @@ export function LoginPage() {
                 <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#E8F0FF] text-xs font-semibold text-[#1A56FF]">1</span>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">Request reset code</div>
-                  <div className="mt-1 text-xs text-gray-500">Use your account email. The code is delivered by email only.</div>
+                  <div className="mt-1 text-xs text-gray-500">Use the administrator email currently configured for this platform.</div>
                 </div>
               </div>
 

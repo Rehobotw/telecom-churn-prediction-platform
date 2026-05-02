@@ -8,6 +8,17 @@ const formatPercent = (value) => `${(Number(value || 0) * 100).toFixed(1)}%`;
 
 const uniqueEmails = (emails) => [...new Set(emails.map((value) => String(value).trim().toLowerCase()).filter(Boolean))];
 
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const buildTemplateValues = (values) =>
+  Object.fromEntries(Object.entries(values).map(([key, value]) => [key, escapeHtml(value)]));
+
 const getRecipients = async () => {
   const profile = await authService.getPublicProfile();
   const configured = profile.preferences?.notificationEmails || [];
@@ -15,7 +26,7 @@ const getRecipients = async () => {
 };
 
 const sendAlertEmail = async (recipients, subject, values) => {
-  const html = await renderTemplate('alert_notification.html', values);
+  const html = await renderTemplate('alert_notification.html', buildTemplateValues(values));
   const deliveries = await Promise.allSettled(
     recipients.map((recipient) => emailService.sendEmail(recipient, subject, html))
   );
@@ -55,11 +66,15 @@ const sendHighRiskAlert = async (prediction) => {
   }
 
   const result = await sendAlertEmail(recipients, 'High Risk Churn Alert', {
+    alert_title: 'High Risk Churn Alert',
+    alert_summary: 'A customer has crossed the configured churn-risk threshold and should be reviewed by the retention team.',
+    alert_badge: 'High priority',
     customer_name: prediction.name || prediction.customerName || prediction.email || 'Unknown',
     risk_level: prediction.riskLevel || 'High',
     churn_probability: formatPercent(probability),
-    prediction: prediction.churnPrediction || prediction.prediction ? 'Will Churn' : 'Will Not Churn',
+    prediction: prediction.churnPrediction || prediction.prediction ? 'Likely to churn' : 'Not likely to churn',
     generated_at: new Date(prediction.predictionDate || Date.now()).toLocaleString(),
+    action_text: 'Recommended action: review account history, contact the customer, and prepare a targeted retention offer.',
   });
 
   if (result.delivered.length === 0 && result.failed.length > 0) {
@@ -87,11 +102,15 @@ const sendManualAlert = async ({ toEmail, subject, message } = {}) => {
     recipients,
     subject || 'Churn Insights Notification Alert',
     {
-      customer_name: message || 'Manual notification alert',
-      risk_level: 'Notification',
+      alert_title: 'Churn Insights Notification',
+      alert_summary: message || 'A platform notification was sent from Churn Insights.',
+      alert_badge: 'Notification',
+      customer_name: 'General notification',
+      risk_level: 'Informational',
       churn_probability: 'N/A',
-      prediction: 'Action requested',
+      prediction: 'Review requested',
       generated_at: new Date().toLocaleString(),
+      action_text: 'Please review this notification and take any required follow-up action.',
     }
   );
 

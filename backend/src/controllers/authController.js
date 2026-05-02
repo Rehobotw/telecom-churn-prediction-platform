@@ -152,7 +152,7 @@ const requestPasswordReset = async (req, res, next) => {
     res.json({
       success: true,
       data: reset,
-      message: 'If the account exists, a reset code has been sent by email',
+      message: 'A reset code has been sent to the administrator email',
     });
   } catch (err) {
     next(err);

@@ -229,9 +229,9 @@ const requestPasswordReset = async (email, metadata = {}) => {
   const normalizedEmail = normalizeEmail(email);
 
   if (normalizedEmail !== profile.email) {
-    return {
-      email: normalizedEmail,
-    };
+    const error = new Error('Password reset is available only for the administrator email configured in this platform.');
+    error.status = 403;
+    throw error;
   }
 
   const code = generateResetCode();

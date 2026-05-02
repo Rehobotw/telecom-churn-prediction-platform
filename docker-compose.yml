@@ -32,7 +32,13 @@ services:
       EMAIL_USERNAME: ${EMAIL_USERNAME:-}
       EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_SECURE: ${EMAIL_SECURE:-false}
+      EMAIL_TLS_REJECT_UNAUTHORIZED: ${EMAIL_TLS_REJECT_UNAUTHORIZED:-true}
       EMAIL_RETRY_ATTEMPTS: ${EMAIL_RETRY_ATTEMPTS:-2}
+      EMAIL_TIMEOUT_MS: ${EMAIL_TIMEOUT_MS:-10000}
+      EXPOSE_RESET_CODE_IN_RESPONSE: ${EXPOSE_RESET_CODE_IN_RESPONSE:-false}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost}
+      RESET_LINK_PATH: ${RESET_LINK_PATH:-/login}
       RESET_CODE_TTL_MINUTES: ${RESET_CODE_TTL_MINUTES:-15}
       RESET_REQUEST_WINDOW_MS: ${RESET_REQUEST_WINDOW_MS:-900000}
       RESET_REQUEST_MAX_ATTEMPTS: ${RESET_REQUEST_MAX_ATTEMPTS:-5}
@@ -61,13 +67,13 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
     ports:
-      - "80:80"
+      - "80:8080"
 
 volumes:
   backend-data:
