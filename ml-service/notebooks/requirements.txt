@@ -1,0 +1,9 @@
+# Base service dependencies
+-r ../requirements.txt
+
+# Notebook-specific dependencies
+ipykernel==6.29.5
+jupyter==1.1.1
+matplotlib==3.9.4
+plotly==5.24.1
+seaborn==0.13.2
