@@ -32,7 +32,9 @@ Then adjust values as needed:
 - `EMAIL_SECURE`: Set to `true` when using SMTPS on port `465`; default is `false` for STARTTLS on `587`
 - `EMAIL_TLS_REJECT_UNAUTHORIZED`: Whether to validate SMTP TLS certificates. Set to `false` only for trusted internal test environments.
 - `EMAIL_RETRY_ATTEMPTS`: Number of retries for SMTP send failures
+- `EMAIL_TIMEOUT_MS`: SMTP connection/socket timeout so reset codes and alerts fail fast when delivery is unavailable
 - `EXPOSE_RESET_CODE_IN_RESPONSE`: Only enable this explicitly for local debugging. Do not enable in production.
+- `FRONTEND_BASE_URL` and `RESET_LINK_PATH`: Used to build the password reset link included with the 6-digit reset code
 - `DAILY_REPORT_TIME`: Local time for scheduled daily notification emails in `HH:MM` format (default `09:00`)
 - `RESET_CODE_TTL_MINUTES`: Password reset code expiry (default `15`)
 - `RESET_REQUEST_WINDOW_MS` and `RESET_REQUEST_MAX_ATTEMPTS`: Rate limiting for forgot-password requests
@@ -122,12 +124,13 @@ The API will be available at `http://localhost:3000` (or your configured port).
 
 ### Auth and Notification Settings
 
-- **POST** `/api/auth/forgot-password`: Sends reset code by email. If SMTP delivery fails and `EXPOSE_RESET_CODE_IN_RESPONSE=true`, response includes `data.resetCode` for local/dev fallback. Otherwise the request fails with a clear SMTP configuration error.
+- **POST** `/api/auth/forgot-password`: Sends a reset email with a 6-digit code and reset link. If SMTP delivery fails and `EXPOSE_RESET_CODE_IN_RESPONSE=true`, response includes `data.resetCode` for local/dev fallback. Otherwise the request fails with a clear SMTP configuration error.
 - **POST** `/api/auth/reset-password`: Completes password reset using emailed code
 - **PATCH** `/api/auth/preferences`: Updates notification settings (`highRiskAlerts`, `dailyReports`, `notificationEmails`)
 - **POST** `/api/auth/test-email`: Sends a test email to verify SMTP configuration
+- **POST** `/api/auth/notification-alert`: Sends an immediate notification alert to saved recipients and the login email
 
-Daily reports are sent automatically when `dailyReports` is enabled and the scheduled job is running.
+High-risk alerts are sent immediately after qualifying predictions. Daily reports are sent automatically when `dailyReports` is enabled and the scheduled job is running.
 
 ## Data Flow
 

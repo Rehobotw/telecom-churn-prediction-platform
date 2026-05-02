@@ -11,7 +11,31 @@ const uniqueEmails = (emails) => [...new Set(emails.map((value) => String(value)
 const getRecipients = async () => {
   const profile = await authService.getPublicProfile();
   const configured = profile.preferences?.notificationEmails || [];
-  return uniqueEmails(configured).filter(emailService.isValidEmail);
+  return uniqueEmails([...configured, profile.email]).filter(emailService.isValidEmail);
+};
+
+const sendAlertEmail = async (recipients, subject, values) => {
+  const html = await renderTemplate('alert_notification.html', values);
+  const deliveries = await Promise.allSettled(
+    recipients.map((recipient) => emailService.sendEmail(recipient, subject, html))
+  );
+
+  const delivered = [];
+  const failed = [];
+
+  deliveries.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      delivered.push(result.value.to);
+      return;
+    }
+
+    failed.push({
+      to: recipients[index],
+      message: result.reason?.message || 'Unable to deliver email',
+    });
+  });
+
+  return { delivered, failed };
 };
 
 const sendHighRiskAlert = async (prediction) => {
@@ -30,7 +54,7 @@ const sendHighRiskAlert = async (prediction) => {
     return;
   }
 
-  const html = await renderTemplate('alert_notification.html', {
+  const result = await sendAlertEmail(recipients, 'High Risk Churn Alert', {
     customer_name: prediction.name || prediction.customerName || prediction.email || 'Unknown',
     risk_level: prediction.riskLevel || 'High',
     churn_probability: formatPercent(probability),
@@ -38,11 +62,49 @@ const sendHighRiskAlert = async (prediction) => {
     generated_at: new Date(prediction.predictionDate || Date.now()).toLocaleString(),
   });
 
-  await Promise.allSettled(
-    recipients.map((recipient) =>
-      emailService.sendEmail(recipient, 'High Risk Churn Alert', html)
-    )
+  if (result.delivered.length === 0 && result.failed.length > 0) {
+    const error = new Error(result.failed[0].message);
+    error.status = 502;
+    throw error;
+  }
+
+  return result;
+};
+
+const sendManualAlert = async ({ toEmail, subject, message } = {}) => {
+  const profile = await authService.getPublicProfile();
+  const recipients = toEmail
+    ? uniqueEmails([toEmail]).filter(emailService.isValidEmail)
+    : await getRecipients();
+
+  if (recipients.length === 0) {
+    const error = new Error('Add a valid notification recipient before sending an alert');
+    error.status = 400;
+    throw error;
+  }
+
+  const result = await sendAlertEmail(
+    recipients,
+    subject || 'Churn Insights Notification Alert',
+    {
+      customer_name: message || 'Manual notification alert',
+      risk_level: 'Notification',
+      churn_probability: 'N/A',
+      prediction: 'Action requested',
+      generated_at: new Date().toLocaleString(),
+    }
   );
+
+  if (result.delivered.length === 0) {
+    const error = new Error(result.failed[0]?.message || 'Unable to deliver notification alert');
+    error.status = 502;
+    throw error;
+  }
+
+  return {
+    ...result,
+    requestedBy: profile.email,
+  };
 };
 
 const summarizeResults = (results) => {
@@ -126,4 +188,5 @@ module.exports = {
   sendDailyReport,
   notifySinglePrediction,
   notifyBatchPrediction,
+  sendManualAlert,
 };

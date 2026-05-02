@@ -9,7 +9,10 @@ const parseList = (value, fallback) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
 const config = {
+  NODE_ENV,
   PORT: Number(process.env.PORT) || 3000,
   ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:8000',
   CUSTOMERS_FILE:
@@ -33,7 +36,10 @@ const config = {
   EMAIL_SECURE: process.env.EMAIL_SECURE === 'true',
   EMAIL_TLS_REJECT_UNAUTHORIZED: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
   EMAIL_RETRY_ATTEMPTS: Number(process.env.EMAIL_RETRY_ATTEMPTS) || 2,
+  EMAIL_TIMEOUT_MS: Number(process.env.EMAIL_TIMEOUT_MS) || 10000,
   EXPOSE_RESET_CODE_IN_RESPONSE: process.env.EXPOSE_RESET_CODE_IN_RESPONSE === 'true',
+  FRONTEND_BASE_URL: (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  RESET_LINK_PATH: process.env.RESET_LINK_PATH || '/login',
   DAILY_REPORT_TIME: process.env.DAILY_REPORT_TIME || '09:00',
   RESET_CODE_TTL_MINUTES: Number(process.env.RESET_CODE_TTL_MINUTES) || 15,
   RESET_REQUEST_WINDOW_MS: Number(process.env.RESET_REQUEST_WINDOW_MS) || 15 * 60 * 1000,

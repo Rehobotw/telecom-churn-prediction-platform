@@ -251,4 +251,21 @@ export async function resetPassword(email: string, resetCode: string, newPasswor
   return response.data;
 }
 
+export async function sendNotificationAlert(toEmail?: string) {
+  const response = await authRequest<{
+    success: boolean;
+    data: { delivered: string[]; failed: Array<{ to: string; message: string }> };
+    message?: string;
+  }>("/api/auth/notification-alert", {
+    method: "POST",
+    body: JSON.stringify({
+      toEmail: toEmail?.trim().toLowerCase() || undefined,
+      subject: "Churn Insights Notification Alert",
+      message: "This is a real-time notification alert from Churn Insights.",
+    }),
+  });
+
+  return response.data;
+}
+
 export { REMEMBER_EMAIL_STORAGE_KEY };

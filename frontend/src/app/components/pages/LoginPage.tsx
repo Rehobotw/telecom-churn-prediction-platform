@@ -40,6 +40,16 @@ export function LoginPage() {
       setRememberMe(true);
       setResetEmail(rememberedEmail);
     }
+
+    const params = new URLSearchParams(window.location.search);
+    const linkedResetEmail = params.get("resetEmail")?.trim().toLowerCase();
+    const linkedResetCode = params.get("resetCode")?.trim();
+    if (linkedResetEmail || linkedResetCode) {
+      setResetEmail(linkedResetEmail || rememberedEmail || "");
+      setResetCode(linkedResetCode || "");
+      setShowForgotPassword(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   useEffect(() => {

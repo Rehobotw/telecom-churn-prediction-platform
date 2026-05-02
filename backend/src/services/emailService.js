@@ -35,9 +35,12 @@ const getTransporter = () => {
           },
         }
       : {}),
+    connectionTimeout: config.EMAIL_TIMEOUT_MS,
+    greetingTimeout: config.EMAIL_TIMEOUT_MS,
+    socketTimeout: config.EMAIL_TIMEOUT_MS,
     requireTLS: !secure,
     tls: {
-      rejectUnauthorized: config.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
+      rejectUnauthorized: config.EMAIL_TLS_REJECT_UNAUTHORIZED,
     },
   });
 
@@ -45,6 +48,18 @@ const getTransporter = () => {
 };
 
 const isValidEmail = (email) => EMAIL_REGEX.test(String(email || '').trim().toLowerCase());
+
+const getDeliveryErrorMessage = (err) => {
+  if (err?.code === 'EAUTH' || /Invalid login|Username and Password not accepted/i.test(err?.message || '')) {
+    return 'SMTP login failed. For Gmail, use a valid app password, not the regular account password.';
+  }
+
+  if (err?.code === 'ECONNECTION' || err?.code === 'ETIMEDOUT' || err?.code === 'ESOCKET') {
+    return 'Unable to connect to the SMTP server. Check EMAIL_HOST, EMAIL_PORT, and network access.';
+  }
+
+  return 'Unable to deliver email at this time';
+};
 
 const sendEmail = async (toEmail, subject, htmlContent) => {
   const normalizedTo = String(toEmail || '').trim().toLowerCase();
@@ -82,9 +97,10 @@ const sendEmail = async (toEmail, subject, htmlContent) => {
     }
   }
 
-  const error = new Error('Unable to deliver email at this time');
+  const error = new Error(getDeliveryErrorMessage(lastError));
   error.status = 502;
   error.cause = lastError;
+  error.code = lastError?.code;
   throw error;
 };
 

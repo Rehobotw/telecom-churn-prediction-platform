@@ -47,6 +47,21 @@ const createResetRecord = (code) => {
 
 const generateResetCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 
+const buildResetLink = (email, code) => {
+  try {
+    const resetUrl = new URL(config.RESET_LINK_PATH, config.FRONTEND_BASE_URL);
+    resetUrl.searchParams.set('resetEmail', normalizeEmail(email));
+    resetUrl.searchParams.set('resetCode', code);
+    return resetUrl.toString();
+  } catch {
+    const params = new URLSearchParams({
+      resetEmail: normalizeEmail(email),
+      resetCode: code,
+    });
+    return `${config.RESET_LINK_PATH || '/login'}?${params.toString()}`;
+  }
+};
+
 const sanitizeNotificationEmails = (emails = []) =>
   [...new Set((Array.isArray(emails) ? emails : [])
     .map((email) => normalizeEmail(email))
@@ -225,6 +240,7 @@ const requestPasswordReset = async (email, metadata = {}) => {
 
   const html = await renderTemplate('password_reset.html', {
     reset_code: code,
+    reset_link: buildResetLink(profile.email, code),
     expiry_minutes: config.RESET_CODE_TTL_MINUTES,
   });
 
@@ -246,8 +262,13 @@ const requestPasswordReset = async (email, metadata = {}) => {
     profile.passwordReset = null;
     await writeAuthProfile(profile);
 
-    const error = new Error('Unable to send reset email. Please make sure SMTP is configured correctly.');
+    const error = new Error(
+      err.status === 503
+        ? 'Email delivery is not configured. Please configure SMTP before sending reset codes.'
+        : err.message || 'Unable to send reset email. Please make sure SMTP is configured correctly.'
+    );
     error.status = err.status || 502;
+    error.expose = true;
     throw error;
   }
 

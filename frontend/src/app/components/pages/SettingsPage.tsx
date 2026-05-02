@@ -6,6 +6,7 @@ import {
   updateAccountEmail,
   updateAccountPassword,
   updateAccountPreferences,
+  sendNotificationAlert,
 } from "../../lib/auth";
 
 export function SettingsPage() {
@@ -13,6 +14,7 @@ export function SettingsPage() {
   const [dailyReports, setDailyReports] = useState(false);
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [notificationEmailInput, setNotificationEmailInput] = useState("");
+  const [isSendingAlert, setIsSendingAlert] = useState(false);
 
   const [email, setEmail] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -135,6 +137,22 @@ export function SettingsPage() {
     });
   };
 
+  const handleSendNotificationAlert = async () => {
+    setIsSendingAlert(true);
+    try {
+      const result = await sendNotificationAlert();
+      const count = result.delivered.length;
+      toast.success(`Notification alert sent to ${count} recipient${count === 1 ? "" : "s"}.`);
+      if (result.failed.length > 0) {
+        toast.warning(`${result.failed.length} recipient${result.failed.length === 1 ? "" : "s"} failed.`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to send notification alert.");
+    } finally {
+      setIsSendingAlert(false);
+    }
+  };
+
   const handlePasswordChange = async () => {
     if (!canSavePassword) {
       toast.error("Password must be at least 8 characters and match confirmation.");
@@ -217,9 +235,22 @@ export function SettingsPage() {
             </div>
 
             <div className="border-t border-[#E5E7EB] pt-4">
-              <div className="font-medium text-gray-900">Notification Recipients</div>
-              <div className="text-sm text-gray-500 mt-1">
-                Add one or more email addresses to receive alert and report notifications.
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-medium text-gray-900">Notification Recipients</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Add one or more email addresses to receive alert and report notifications.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendNotificationAlert}
+                  disabled={isSendingAlert}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1A56FF] bg-white px-4 py-2.5 text-sm font-medium text-[#1A56FF] transition-colors hover:bg-blue-50 disabled:opacity-70"
+                >
+                  <Mail className="w-4 h-4" />
+                  {isSendingAlert ? "Sending..." : "Send Alert"}
+                </button>
               </div>
 
               <div className="mt-4 flex gap-3">
@@ -278,7 +309,7 @@ export function SettingsPage() {
               </div>
 
               <p className="text-xs text-gray-500 mt-3">
-                Notifications are sent only to the recipients saved here. Login email and notification emails are managed separately.
+                Alerts are sent to saved recipients and the login email so account owners receive urgent notifications by default.
               </p>
             </div>
           </div>

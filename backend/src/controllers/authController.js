@@ -2,6 +2,7 @@ const authService = require('../services/authService');
 const config = require('../config/config');
 const { createSessionToken } = require('../services/sessionService');
 const emailService = require('../services/emailService');
+const notificationService = require('../services/notificationService');
 
 const baseSessionCookieOptions = {
   httpOnly: true,
@@ -197,6 +198,34 @@ const sendTestEmail = async (req, res, next) => {
   }
 };
 
+const sendNotificationAlert = async (req, res, next) => {
+  try {
+    const { toEmail, subject, message } = req.body || {};
+    const normalizedToEmail =
+      typeof toEmail === 'string' && toEmail.trim()
+        ? toEmail.trim().toLowerCase()
+        : undefined;
+
+    if (normalizedToEmail && !emailService.isValidEmail(normalizedToEmail)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid recipient email address' });
+    }
+
+    const result = await notificationService.sendManualAlert({
+      toEmail: normalizedToEmail,
+      subject: typeof subject === 'string' && subject.trim() ? subject.trim() : undefined,
+      message: typeof message === 'string' && message.trim() ? message.trim() : undefined,
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Notification alert delivered successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const resetPassword = async (req, res, next) => {
   try {
     const { email, resetCode, newPassword } = req.body || {};
@@ -239,6 +268,7 @@ module.exports = {
   me,
   requestPasswordReset,
   resetPassword,
+  sendNotificationAlert,
   sendTestEmail,
   updateEmail,
   updatePreferences,

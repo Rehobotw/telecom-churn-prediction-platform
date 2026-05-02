@@ -7,15 +7,55 @@ from typing import Any, Dict, List
 import joblib
 import pandas as pd
 
-from .config import MODEL_METADATA_PATH, MODEL_PATH, RAW_DATA_PATH, TARGET_COLUMN
+from .config import (
+    FEATURE_IMPORTANCE_PATH,
+    MODEL_METADATA_PATH,
+    MODEL_PATH,
+    RAW_DATA_PATH,
+    TARGET_COLUMN,
+)
+
+
+def _load_saved_feature_importance() -> List[Dict[str, Any]]:
+    importance_path = Path(FEATURE_IMPORTANCE_PATH)
+    if not importance_path.exists():
+        return []
+
+    try:
+        saved = json.loads(importance_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(saved, list):
+        return []
+
+    ranked = []
+    for item in saved:
+        if not isinstance(item, dict) or not item.get("feature"):
+            continue
+
+        try:
+            importance = float(item.get("importance", 0))
+        except (TypeError, ValueError):
+            continue
+
+        ranked.append({
+            "feature": str(item.get("feature", "")),
+            "importance": importance,
+        })
+
+    return sorted(ranked, key=lambda item: item["importance"], reverse=True)
 
 
 def _load_feature_importance() -> List[Dict[str, Any]]:
     metadata_path = Path(MODEL_METADATA_PATH)
     if not metadata_path.exists():
-        return []
+        return _load_saved_feature_importance()
 
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return _load_saved_feature_importance()
     selected_model = metadata.get("selected_model")
     feature_names = metadata.get("feature_columns", [])
 
@@ -27,7 +67,7 @@ def _load_feature_importance() -> List[Dict[str, Any]]:
         model_path = metadata.get("model_path") or str(MODEL_PATH)
 
     if not model_path or not Path(model_path).exists():
-        return []
+        return _load_saved_feature_importance()
 
     model = joblib.load(model_path)
     if hasattr(model, "feature_importances_"):
@@ -35,7 +75,7 @@ def _load_feature_importance() -> List[Dict[str, Any]]:
     elif hasattr(model, "coef_"):
         raw_values = [abs(float(value)) for value in model.coef_[0]]
     else:
-        return []
+        return _load_saved_feature_importance()
 
     if not feature_names:
         feature_names = [f"feature_{index + 1}" for index in range(len(raw_values))]
@@ -55,7 +95,7 @@ def _load_feature_importance() -> List[Dict[str, Any]]:
         key=lambda item: item["importance"],
         reverse=True,
     )
-    return ranked
+    return ranked or _load_saved_feature_importance()
 
 
 def _infer_churn_series(df: pd.DataFrame) -> pd.Series:
