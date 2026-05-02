@@ -93,14 +93,6 @@ export function SettingsPage() {
     try {
       const updated = await updateAccountEmail(normalizedEmail);
       setEmail(updated.email);
-      const nextEmails = notificationEmails.includes(normalizedEmail)
-        ? notificationEmails
-        : [normalizedEmail, ...notificationEmails];
-      await persistPreferences({
-        highRiskAlerts,
-        dailyReports,
-        notificationEmails: nextEmails,
-      });
       setShowEmailModal(false);
       setNewEmail("");
       toast.success(`Login email updated to ${updated.email}.`);
@@ -286,7 +278,7 @@ export function SettingsPage() {
               </div>
 
               <p className="text-xs text-gray-500 mt-3">
-                Notifications are sent to all saved recipients. Login email and notification emails can be managed separately.
+                Notifications are sent only to the recipients saved here. Login email and notification emails are managed separately.
               </p>
             </div>
           </div>
@@ -325,7 +317,7 @@ export function SettingsPage() {
                     Update Email
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">This email is used for login and can also be added to notification recipients.</p>
+                <p className="text-xs text-gray-500 mt-2">This email is used for login only unless you also add it as a notification recipient above.</p>
               </div>
             </div>
 

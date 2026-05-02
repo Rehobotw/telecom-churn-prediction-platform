@@ -12,7 +12,7 @@ const resetRequestTracker = new Map();
 const DEFAULT_PREFERENCES = {
   highRiskAlerts: true,
   dailyReports: false,
-  notificationEmails: [config.ADMIN_EMAIL],
+  notificationEmails: [],
   autoRetrain: 'Monthly',
 };
 
@@ -63,9 +63,7 @@ const buildPreferences = (preferences) => ({
       : DEFAULT_PREFERENCES.dailyReports,
   notificationEmails: (() => {
     const sanitized = sanitizeNotificationEmails(preferences?.notificationEmails);
-    return sanitized.length > 0
-      ? sanitized
-      : sanitizeNotificationEmails(DEFAULT_PREFERENCES.notificationEmails);
+    return sanitized;
   })(),
   autoRetrain:
     typeof preferences?.autoRetrain === 'string' && preferences.autoRetrain.trim()
@@ -176,13 +174,7 @@ const verifyCredentials = async (email, password) => {
 const updateEmail = async (nextEmail) => {
   const profile = await readAuthProfile();
   profile.email = normalizeEmail(nextEmail);
-  profile.preferences = buildPreferences({
-    ...profile.preferences,
-    notificationEmails: sanitizeNotificationEmails([
-      ...profile.preferences.notificationEmails,
-      profile.email,
-    ]),
-  });
+  profile.preferences = buildPreferences(profile.preferences);
   profile.passwordReset = null;
   await writeAuthProfile(profile);
   return { email: profile.email };
@@ -229,6 +221,8 @@ const requestPasswordReset = async (email, metadata = {}) => {
 
   const code = generateResetCode();
   profile.passwordReset = createResetRecord(code);
+  await writeAuthProfile(profile);
+
   const html = await renderTemplate('password_reset.html', {
     reset_code: code,
     expiry_minutes: config.RESET_CODE_TTL_MINUTES,
@@ -241,17 +235,25 @@ const requestPasswordReset = async (email, metadata = {}) => {
       html
     );
   } catch (err) {
+    if (config.EXPOSE_RESET_CODE_IN_RESPONSE) {
+      return {
+        email: profile.email,
+        delivery: 'fallback',
+        resetCode: code,
+      };
+    }
+
     profile.passwordReset = null;
     await writeAuthProfile(profile);
-    const error = new Error('Unable to send reset email. Please try again later.');
+
+    const error = new Error('Unable to send reset email. Please make sure SMTP is configured correctly.');
     error.status = err.status || 502;
     throw error;
   }
 
-  await writeAuthProfile(profile);
-
   return {
     email: profile.email,
+    delivery: 'email',
   };
 };
 

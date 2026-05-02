@@ -28,8 +28,12 @@ Then adjust values as needed:
 - `PORT`: Port for the Node.js server (default: `3000`)
 - `ML_SERVICE_URL`: Base URL of the Python ML service (default: `http://localhost:8000`)
 - `CUSTOMERS_FILE`: Path to customers.json (default: `src/data/customers.json`)
-- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM`: SMTP settings for password reset and notification emails
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM`: SMTP settings for password reset and notification emails. If `EMAIL_FROM` is omitted, the backend falls back to `EMAIL_USERNAME` and then `ADMIN_EMAIL`.
+- `EMAIL_SECURE`: Set to `true` when using SMTPS on port `465`; default is `false` for STARTTLS on `587`
+- `EMAIL_TLS_REJECT_UNAUTHORIZED`: Whether to validate SMTP TLS certificates. Set to `false` only for trusted internal test environments.
 - `EMAIL_RETRY_ATTEMPTS`: Number of retries for SMTP send failures
+- `EXPOSE_RESET_CODE_IN_RESPONSE`: Only enable this explicitly for local debugging. Do not enable in production.
+- `DAILY_REPORT_TIME`: Local time for scheduled daily notification emails in `HH:MM` format (default `09:00`)
 - `RESET_CODE_TTL_MINUTES`: Password reset code expiry (default `15`)
 - `RESET_REQUEST_WINDOW_MS` and `RESET_REQUEST_MAX_ATTEMPTS`: Rate limiting for forgot-password requests
 
@@ -118,10 +122,12 @@ The API will be available at `http://localhost:3000` (or your configured port).
 
 ### Auth and Notification Settings
 
-- **POST** `/api/auth/forgot-password`: Sends reset code by email (does not return code in response)
+- **POST** `/api/auth/forgot-password`: Sends reset code by email. If SMTP delivery fails and `EXPOSE_RESET_CODE_IN_RESPONSE=true`, response includes `data.resetCode` for local/dev fallback. Otherwise the request fails with a clear SMTP configuration error.
 - **POST** `/api/auth/reset-password`: Completes password reset using emailed code
 - **PATCH** `/api/auth/preferences`: Updates notification settings (`highRiskAlerts`, `dailyReports`, `notificationEmails`)
 - **POST** `/api/auth/test-email`: Sends a test email to verify SMTP configuration
+
+Daily reports are sent automatically when `dailyReports` is enabled and the scheduled job is running.
 
 ## Data Flow
 

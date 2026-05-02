@@ -12,6 +12,8 @@ export type AccountProfile = {
 
 type ForgotPasswordResponse = {
   email: string;
+  delivery?: "email" | "fallback";
+  resetCode?: string;
 };
 
 type SessionState = {
@@ -28,7 +30,7 @@ const REMEMBER_EMAIL_STORAGE_KEY = "churn-insights-remember-email";
 const defaultPreferences: AccountPreferences = {
   highRiskAlerts: true,
   dailyReports: false,
-  notificationEmails: ["admin@gmail.com"],
+  notificationEmails: [],
   autoRetrain: "Monthly",
 };
 
@@ -208,6 +210,9 @@ export async function updateAccountEmail(nextEmail: string) {
     body: JSON.stringify({ email: nextEmail.trim().toLowerCase() }),
   });
   setAuthenticatedSession(response.data.email);
+  if (canUseStorage() && window.localStorage.getItem(REMEMBER_EMAIL_STORAGE_KEY)) {
+    window.localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, response.data.email);
+  }
   return response.data;
 }
 

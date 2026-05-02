@@ -78,7 +78,12 @@ export function LoginPage() {
     try {
       const response = await requestPasswordReset(resetEmail);
       setResetEmail(response.email);
-      setResetSuccess("If the account exists, a reset code has been sent to the inbox.");
+      if (response.delivery === "fallback" && response.resetCode) {
+        setResetCode(response.resetCode);
+        setResetSuccess(`Email delivery is unavailable. Use this reset code: ${response.resetCode}`);
+      } else {
+        setResetSuccess("If the account exists, a reset code has been sent to the inbox.");
+      }
     } catch (err) {
       setResetError(err instanceof Error ? err.message : "Unable to request password reset.");
     } finally {

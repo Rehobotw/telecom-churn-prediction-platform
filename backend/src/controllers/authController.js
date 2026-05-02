@@ -154,12 +154,7 @@ const requestPasswordReset = async (req, res, next) => {
       message: 'If the account exists, a reset code has been sent by email',
     });
   } catch (err) {
-    console.error('[auth] forgot-password email delivery failed:', err?.message || err);
-    return res.json({
-      success: true,
-      data: { email: authService.normalizeEmail(req.body?.email || '') },
-      message: 'If the account exists, a reset code has been sent by email',
-    });
+    next(err);
   }
 };
 

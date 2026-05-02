@@ -161,11 +161,12 @@ Request:
 
 Response behavior:
 
-- Always returns a generic success message for anti-enumeration behavior.
-- Reset code is never returned in API response.
+- Returns a generic success message for anti-enumeration behavior when the request is accepted.
+- If the email does not match the configured account, the endpoint still returns a generic success response without sending mail.
+- Reset code is not returned in normal API responses; only explicit local-debug fallback mode can include it.
 - Reset code is generated securely, hashed at rest, and expires after configured TTL (default 15 minutes).
 - Reset requests are rate-limited per email+IP window.
-- If SMTP delivery fails, endpoint still returns generic success and logs server-side failure.
+- If SMTP delivery fails, the endpoint returns a clear SMTP configuration error unless `EXPOSE_RESET_CODE_IN_RESPONSE=true` is explicitly enabled for local debugging.
 
 Response 200:
 
@@ -227,6 +228,8 @@ Request (optional fields):
 ```
 
 If toEmail is omitted, authenticated account email is used.
+
+Daily reports are sent automatically at the configured `DAILY_REPORT_TIME` when `dailyReports` is enabled and the backend scheduler is running.
 
 ### 3.5 Single Prediction
 

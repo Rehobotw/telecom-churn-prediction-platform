@@ -5,13 +5,13 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let transporter;
 
+const getFromAddress = () => config.EMAIL_FROM || config.EMAIL_USERNAME || config.ADMIN_EMAIL;
+
 const isEmailConfigured = () =>
   Boolean(
     config.EMAIL_HOST &&
       config.EMAIL_PORT &&
-      config.EMAIL_USERNAME &&
-      config.EMAIL_PASSWORD &&
-      config.EMAIL_FROM
+      getFromAddress()
   );
 
 const getTransporter = () => {
@@ -19,15 +19,26 @@ const getTransporter = () => {
     return transporter;
   }
 
+  const secure = typeof config.EMAIL_SECURE === 'boolean'
+    ? config.EMAIL_SECURE
+    : config.EMAIL_PORT === 465;
+
   transporter = nodemailer.createTransport({
     host: config.EMAIL_HOST,
     port: config.EMAIL_PORT,
-    secure: false,
-    auth: {
-      user: config.EMAIL_USERNAME,
-      pass: config.EMAIL_PASSWORD,
+    secure,
+    ...(config.EMAIL_USERNAME && config.EMAIL_PASSWORD
+      ? {
+          auth: {
+            user: config.EMAIL_USERNAME,
+            pass: config.EMAIL_PASSWORD,
+          },
+        }
+      : {}),
+    requireTLS: !secure,
+    tls: {
+      rejectUnauthorized: config.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
     },
-    requireTLS: true,
   });
 
   return transporter;
@@ -50,13 +61,15 @@ const sendEmail = async (toEmail, subject, htmlContent) => {
     throw error;
   }
 
+  const fromAddress = getFromAddress();
+
   const maxAttempts = Math.max(1, Number(config.EMAIL_RETRY_ATTEMPTS) || 1);
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await getTransporter().sendMail({
-        from: config.EMAIL_FROM,
+        from: fromAddress,
         to: normalizedTo,
         subject,
         html: htmlContent,

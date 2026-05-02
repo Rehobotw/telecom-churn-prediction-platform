@@ -1,4 +1,5 @@
 const authService = require('./authService');
+const customerService = require('./customerService');
 const emailService = require('./emailService');
 const { renderTemplate } = require('./templateService');
 const config = require('../config/config');
@@ -10,8 +11,7 @@ const uniqueEmails = (emails) => [...new Set(emails.map((value) => String(value)
 const getRecipients = async () => {
   const profile = await authService.getPublicProfile();
   const configured = profile.preferences?.notificationEmails || [];
-  const fallback = profile.email ? [profile.email] : [];
-  return uniqueEmails([...configured, ...fallback]).filter(emailService.isValidEmail);
+  return uniqueEmails(configured).filter(emailService.isValidEmail);
 };
 
 const sendHighRiskAlert = async (prediction) => {
@@ -64,7 +64,7 @@ const summarizeResults = (results) => {
   };
 };
 
-const sendPredictionSummary = async (results, predictionType) => {
+const sendPredictionSummary = async (results, predictionType, subject = 'Churn Prediction Summary') => {
   const profile = await authService.getPublicProfile();
   if (!profile.preferences?.dailyReports) {
     return;
@@ -88,9 +88,22 @@ const sendPredictionSummary = async (results, predictionType) => {
 
   await Promise.allSettled(
     recipients.map((recipient) =>
-      emailService.sendEmail(recipient, 'Churn Prediction Summary', html)
+      emailService.sendEmail(recipient, subject, html)
     )
   );
+};
+
+const sendDailyReport = async () => {
+  const customers = await customerService.getCustomers();
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const todaysPredictions = customers.filter((item) => {
+    const predictionTime = Date.parse(item.predictionDate || '');
+    return Number.isFinite(predictionTime) && predictionTime >= startOfDay.getTime();
+  });
+
+  await sendPredictionSummary(todaysPredictions, 'Daily report', 'Churn Insights Daily Report');
 };
 
 const notifySinglePrediction = async (prediction) => {
@@ -110,6 +123,7 @@ const notifyBatchPrediction = async (predictions) => {
 };
 
 module.exports = {
+  sendDailyReport,
   notifySinglePrediction,
   notifyBatchPrediction,
 };
