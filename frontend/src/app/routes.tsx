@@ -6,10 +6,8 @@ import { PredictionsPage } from "./components/pages/PredictionsPage";
 import { CustomersPage } from "./components/pages/CustomersPage";
 import { ModelMetricsPage } from "./components/pages/ModelMetricsPage";
 import { SettingsPage } from "./components/pages/SettingsPage";
-import { isAuthenticated } from "./lib/auth";
-
 function RootRedirect() {
-  return <Navigate to={isAuthenticated() ? "/app" : "/login"} replace />;
+  return <Navigate to="/login" replace />;
 }
 
 export const router = createBrowserRouter([
