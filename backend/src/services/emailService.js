@@ -23,7 +23,7 @@ const getTransporter = () => {
     ? config.EMAIL_SECURE
     : config.EMAIL_PORT === 465;
 
-  transporter = nodemailer.createTransport({
+  const transportConfig = {
     host: config.EMAIL_HOST,
     port: config.EMAIL_PORT,
     secure,
@@ -42,7 +42,16 @@ const getTransporter = () => {
     tls: {
       rejectUnauthorized: config.EMAIL_TLS_REJECT_UNAUTHORIZED,
     },
-  });
+  };
+
+  if (config.EMAIL_HOST === 'smtp.gmail.com') {
+    delete transportConfig.host;
+    delete transportConfig.port;
+    delete transportConfig.secure;
+    transportConfig.service = 'gmail';
+  }
+
+  transporter = nodemailer.createTransport(transportConfig);
 
   return transporter;
 };
