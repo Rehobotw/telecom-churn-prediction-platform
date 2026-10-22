@@ -549613,5 +549613,33 @@
       "monthlyCharges": 2000,
       "num_services": 1
     }
+  },
+  {
+    "id": "8f6913ed-387b-4090-ad8c-04d9eaeb14db",
+    "customerId": "8f6913ed-387b-4090-ad8c-04d9eaeb14db",
+    "name": "mr x",
+    "email": "",
+    "tenure": 25,
+    "monthlyCharges": 36,
+    "contractType": "One year",
+    "internetService": "Fiber optic",
+    "paymentMethod": "Bank transfer (automatic)",
+    "churnProbability": 0.41783382964183136,
+    "churnPrediction": false,
+    "riskLevel": "Medium",
+    "predictionDate": "2026-10-22T09:10:07.457Z",
+    "customerData": {
+      "customerName": "mr x",
+      "gender": "Male",
+      "dependents": true,
+      "tenure": 25,
+      "contractType": "One year",
+      "paperlessBilling": false,
+      "paymentMethod": "Bank transfer (automatic)",
+      "phoneService": false,
+      "internetService": "Fiber optic",
+      "monthlyCharges": 36,
+      "num_services": 2
+    }
   }
 ]

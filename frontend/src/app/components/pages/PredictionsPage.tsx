@@ -193,8 +193,10 @@ export function PredictionsPage() {
       const result = await createPrediction(modelPayload);
       setPrediction(result);
       setRequestStatus("success");
-    } catch {
-      const errorMessage = "Unable to connect to the prediction service. Please try again.";
+    } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Prediction request failed. Please try again.";
       setRequestStatus("error");
       setRequestError(errorMessage);
       toast.error(`Error: ${errorMessage}`);

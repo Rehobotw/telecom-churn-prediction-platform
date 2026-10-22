@@ -38,9 +38,9 @@ export function ModelMetricsPage() {
           setModelInfo(modelInfoResult.ok ? modelInfoResult.data : null);
           setError("");
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError("Unable to load model metrics from backend.");
+          setError(error instanceof Error ? error.message : "Unable to load model metrics from backend.");
           setModelMetrics(null);
           setModelInfo(null);
         }

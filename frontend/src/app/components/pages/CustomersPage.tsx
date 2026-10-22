@@ -40,9 +40,9 @@ export function CustomersPage() {
           setPagination(response.pagination ?? DEFAULT_PAGINATION);
           setError("");
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError("Unable to load customers from backend.");
+          setError(error instanceof Error ? error.message : "Unable to load customers from backend.");
           setCustomers([]);
           setPagination((current) => ({ ...current, total: 0, totalPages: 1 }));
         }

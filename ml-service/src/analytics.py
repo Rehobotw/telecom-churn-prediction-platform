@@ -11,6 +11,7 @@ from .config import (
     FEATURE_IMPORTANCE_PATH,
     MODEL_METADATA_PATH,
     MODEL_PATH,
+    PROCESSED_DATA_PATH,
     RAW_DATA_PATH,
     TARGET_COLUMN,
 )
@@ -133,7 +134,12 @@ def _build_trend(df: pd.DataFrame, churn: pd.Series) -> List[Dict[str, Any]]:
     ]
 
 
-def get_analytics_data(data_path: Path | str = RAW_DATA_PATH, predictions_today: int | None = None) -> Dict[str, Any]:
+def get_analytics_data(data_path: Path | str | None = None, predictions_today: int | None = None) -> Dict[str, Any]:
+    # Prefer the original dataset when available, but deployments often only
+    # include the processed dataset used by training and evaluation.
+    if data_path is None:
+        data_path = RAW_DATA_PATH if Path(RAW_DATA_PATH).exists() else PROCESSED_DATA_PATH
+
     df = pd.read_csv(data_path)
     churn = _infer_churn_series(df)
 
