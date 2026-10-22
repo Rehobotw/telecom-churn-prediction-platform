@@ -21,12 +21,28 @@ flowchart LR
 | Backend | `backend` | `http://localhost:3000/api` | Customer persistence and API gateway |
 | ML service | `ml-service` | `http://localhost:8000` | Churn prediction, metrics, and analytics |
 
-## Prerequisites
+## Start the full project with Docker
 
-- Node.js 20 LTS or newer
-- Python 3.11
-- npm
-- Docker and Docker Compose, if running containers
+Install Docker Engine and the Docker Compose plugin, then run this command from the repository root:
+
+```bash
+docker compose up --build
+```
+
+This builds and starts the React frontend, Express API, and FastAPI ML service. On the first run Docker downloads the base images and installs the service dependencies, so the build can take a few minutes. When it is ready, open `http://localhost`.
+
+Use `Ctrl+C` to stop the foreground stack. To start it in the background, add `-d` and stop it later with `docker compose down`:
+
+```bash
+docker compose up --build -d
+docker compose down
+```
+
+The backend customer data and uploaded CSV files are stored in Docker volumes and persist when containers stop. To remove those volumes and their data as well, run `docker compose down --volumes`.
+
+## Run locally without Docker
+
+Local development requires Node.js 20 LTS or newer, Python 3.11, and npm.
 
 ## Environment Setup
 
@@ -46,9 +62,9 @@ Start the ML service, backend, and frontend in separate terminals:
 
 ```bash
 cd ml-service
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -61,16 +77,6 @@ cd frontend && npm install && npm run dev
 ```
 
 Open `http://localhost:5173`.
-
-## Run With Docker Compose
-
-Set deployment values in a root `.env` file as needed, then run:
-
-```bash
-docker compose up --build
-```
-
-Open `http://localhost`.
 
 ## Useful Commands
 

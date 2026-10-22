@@ -1,4 +1,5 @@
-# ML service runtime
+# Runtime dependencies for the FastAPI inference service.
+# Keep this file limited to packages the service imports at runtime.
 fastapi==0.115.6
 joblib==1.4.2
 numpy==2.2.1
@@ -6,9 +7,3 @@ pandas==2.2.3
 python-multipart==0.0.20
 scikit-learn==1.6.1
 uvicorn==0.34.0
-
-# Notebook and visualization tools
-ipykernel==7.2.0
-matplotlib==3.10.8
-plotly==6.6.0
-seaborn==0.13.2
