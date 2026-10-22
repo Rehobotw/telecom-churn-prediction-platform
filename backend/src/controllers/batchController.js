@@ -34,8 +34,7 @@ const buildFakeIdentity = (index) => {
   const firstName = FIRST_NAMES[index % FIRST_NAMES.length];
   const lastName = LAST_NAMES[Math.floor(index / FIRST_NAMES.length) % LAST_NAMES.length];
   const name = `${firstName} ${lastName}`;
-  const email = `${firstName}.${lastName}.${index + 1}@example.com`.toLowerCase();
-  return { name, email };
+  return { name };
 };
 
 const predictBatch = async (req, res, next) => {
@@ -52,7 +51,7 @@ const predictBatch = async (req, res, next) => {
         id: customerId,
         customerId,
         name: result.customerData.customerName || result.customerData.name || fallbackIdentity.name,
-        email: result.customerData.email || fallbackIdentity.email,
+        email: result.customerData.email || '',
         tenure: Number(result.customerData.tenure ?? 0),
         monthlyCharges: Number(result.customerData.monthlyCharges ?? result.customerData.MonthlyCharges ?? 0),
         contractType: result.customerData.contractType || result.customerData.Contract || '',

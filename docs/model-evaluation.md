@@ -1,13 +1,13 @@
 # Model Evaluation and Decision Utility Report
 
-This report documents current model performance, selection logic, and operational threshold interpretation for the telecom churn platform.
+This report documents the saved dataset evaluation results and model selection logic for the telecom churn platform.
 
 ## 1. Evaluation Objective
 
 The evaluation goal is two-layered:
 
 1. Statistical quality: identify a model with strong minority-class ranking and detection performance.
-2. Decision utility: ensure model scores can be mapped to actionable risk bands (Low/Medium/High) without losing business credibility.
+2. Score interpretation: map model probabilities to descriptive risk bands (Low/Medium/High).
 
 ## 2. Current Model Selection State
 
@@ -50,14 +50,14 @@ Logistic Regression comparison metrics (from model_metadata.json):
 Interpretation:
 
 - Random forest achieved the best AUC and better precision/F1 than logistic baseline, with slightly lower recall.
-- This supports its current role as the production model.
+- This supports its selection as the current model in the saved project metadata.
 
 ## 4. Why Accuracy Is Secondary
 
-Churn prediction is class-imbalanced and intervention-driven. Therefore:
+Churn prediction is class-imbalanced. Therefore:
 
-- Accuracy is not sufficient to judge retention utility.
-- Precision and recall are primary for campaign efficiency and coverage.
+- Accuracy is not sufficient to evaluate the minority class.
+- Precision and recall help describe positive-class detection and false positives.
 - ROC-AUC is central for ranking quality before thresholding.
 
 This is consistent with current selection logic and downstream risk-band usage.
@@ -72,18 +72,18 @@ The platform uses probability score as primary output and maps it to risk labels
 
 Decision impact:
 
-1. Enables ranked intervention queues.
-2. Allows budget/capacity-constrained treatment selection.
-3. Keeps model explainability for business stakeholders.
+1. Supports ranking customers by model score.
+2. Separates score ranges for review.
+3. Makes model outputs easier to interpret.
 
 ## 6. Threshold Strategy and Calibration Guidance
 
 Current thresholds are a default operational baseline. To mature into a governed decision policy, apply the following calibration cycle:
 
 1. Build probability deciles and realized churn rates.
-2. Quantify intervention success and treatment cost by segment.
-3. Align high-risk cutoff with weekly capacity limits.
-4. Re-optimize cutoff for economic utility, not fixed convention.
+2. Compare calibration and realized outcomes by score range.
+3. Review high-risk cutoff against validation results.
+4. Re-evaluate cutoffs when the data or model changes.
 5. Revalidate after model retrain or data distribution shift.
 
 ## 7. Validation Design Review
@@ -106,13 +106,12 @@ Recommended next hardening:
 
 To close the model-to-business loop, track monthly:
 
-1. Contacted high-risk customer volume versus capacity.
-2. Save rate by risk band and intervention type.
-3. False positive burden (unnecessary intervention cost).
-4. Missed churn cost from false negatives.
-5. Drift in risk-band distribution.
+1. Precision and recall by evaluation period.
+2. Calibration by probability range.
+3. False positive and false negative counts.
+4. Drift in input and risk-band distributions.
 
 ## 9. Final Evaluation Decision Statement
 
-The current random forest model demonstrates acceptable ranking quality and useful recall for churn intervention workflows. The model is fit for score-based prioritization with the existing three-band policy, provided threshold calibration is treated as an ongoing operational process tied to capacity and retention economics rather than a static technical constant.
+The saved Random Forest evaluation has the highest ROC-AUC among the tracked baselines. These are dataset evaluation results and do not guarantee production performance. The probability bands are descriptive defaults and should be reviewed with new validation data.
 

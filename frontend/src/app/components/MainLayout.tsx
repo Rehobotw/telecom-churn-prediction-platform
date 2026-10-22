@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { LayoutDashboard, Target, Users, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Target, Users, BarChart3 } from "lucide-react";
 
 export function MainLayout() {
   const location = useLocation();
@@ -9,7 +9,6 @@ export function MainLayout() {
     { path: "/app/predictions", label: "Predictions", icon: Target },
     { path: "/app/customers", label: "Customers", icon: Users },
     { path: "/app/model-metrics", label: "Model Metrics", icon: BarChart3 },
-    { path: "/app/settings", label: "Settings", icon: Settings },
   ];
 
   return (

@@ -1,287 +1,51 @@
-# Telecom Churn Platform API Documentation
+# Telecom Churn Platform API
 
-This document reflects the current production-facing API design of the telecom churn platform, including:
+The React frontend calls the Express API. The backend persists prediction records and proxies scoring and analytics requests to the FastAPI ML service.
 
-- Node.js backend API (primary client-facing API)
-- FastAPI ML service API (internal scoring/analytics API)
-- Auth, password reset via SMTP, and notification settings integration
-- Risk-band and intervention semantics used by the prediction endpoints
+## Service URLs
 
-## 1. Service Topology
+- Frontend: `http://localhost:5173` during development, `http://localhost` with Docker Compose
+- Backend: `http://localhost:3000`
+- ML service: `http://localhost:8000`
 
-- Frontend calls the backend at /api/*.
-- Backend orchestrates auth, persistence, and notification policy.
-- Backend calls ml-service for model scoring and analytics.
-- Backend stores customer and auth state in local JSON files (or mounted volumes in deployment).
+## Backend API
 
-Default local URLs:
+### Health
 
-- Frontend: http://localhost:80
-- Backend: http://localhost:3000
-- ML Service: http://localhost:8000
+`GET /api/health`
 
-## 2. Access Model
+### Single prediction
 
-The platform does not require user login sessions. All endpoints are open and accessible to the frontend client without authentication.
+`POST /api/predict` (also available at `/api/predictions`)
 
-Available backend routes:
+Required input fields include `gender`, `dependents`, `tenure`, `monthlyCharges`, `contractType`, `paperlessBilling`, `paymentMethod`, `phoneService`, `internetService`, and `num_services`. `customerName`, `name`, and `email` are optional identity fields. The prediction form does not require contact information.
 
-- GET /api/health
-- GET /api/auth/preferences
-- PATCH /api/auth/preferences
-- POST /api/auth/test-email
-- POST /api/auth/notification-alert
-- POST /api/predict or /api/predictions
-- POST /api/batch
-- GET /api/analytics
-- GET /api/metrics
-- GET /api/model-info
-- GET /api/customers
+The response contains the customer record, churn probability, predicted label, risk level, and prediction timestamp. The backend stores the result in its customer data file.
 
+### CSV batch prediction
 
-## 3. Backend API (Client-Facing)
+`POST /api/batch`
 
-### 3.1 Health
+Send multipart form data with a CSV file in the `file` field. The response includes processed rows, validation warnings, ignored columns, and CSV content for download.
 
-GET /api/health
+### Analytics and model information
 
-Response 200:
+- `GET /api/analytics` — customer and churn analytics
+- `GET /api/metrics` — model evaluation metrics
+- `GET /api/model-info` — selected model metadata
+- `GET /api/customers` — persisted prediction records; supports `search`, `risk`, and `contractType` filters
 
-```json
-{
-	"success": true,
-	"data": {
-		"status": "ok",
-		"service": "telecom-churn-backend",
-		"timestamp": "2026-04-13T10:20:30.000Z"
-	}
-}
-```
-
-### 3.2 Notification Settings
-
-GET /api/auth/preferences
-
-Response 200:
-
-```json
-{
-	"success": true,
-	"data": {
-		"highRiskAlerts": true,
-		"dailyReports": false,
-		"notificationEmails": ["admin@example.com"],
-		"autoRetrain": "Monthly"
-	}
-}
-```
-
-### 3.3 Notification Settings and SMTP Test
-
-
-PATCH /api/auth/preferences
-
-Request:
-
-```json
-{
-	"highRiskAlerts": true,
-	"dailyReports": false,
-	"notificationEmails": ["ops@example.com", "retention@example.com"],
-	"autoRetrain": "Monthly"
-}
-```
-
-Response returns normalized/sanitized persisted preferences.
+## FastAPI ML Service
 
-POST /api/auth/test-email
+Base URL: `http://localhost:8000` locally, or `http://ml-service:8000` in Docker.
 
-Request (optional fields):
+- `GET /health`
+- `POST /predict`
+- `POST /batch_predict`
+- `GET /analytics`
+- `GET /metrics`
+- `GET /model-info`
 
-```json
-{
-	"toEmail": "ops@example.com",
-	"subject": "SMTP connectivity check"
-}
-```
-
-If toEmail is omitted, authenticated account email is used.
+## Errors
 
-Daily reports are sent automatically at the configured `DAILY_REPORT_TIME` when `dailyReports` is enabled and the backend scheduler is running.
-
-### 3.5 Single Prediction
-
-POST /api/predict (alias: POST /api/predictions)
-
-Request schema (validated):
-
-```json
-{
-	"customerName": "Jane Doe",
-	"email": "jane@example.com",
-	"gender": "Female",
-	"dependents": false,
-	"tenure": 24,
-	"contractType": "Month-to-month",
-	"paperlessBilling": true,
-	"paymentMethod": "Electronic check",
-	"phoneService": true,
-	"internetService": "Fiber optic",
-	"monthlyCharges": 89.5,
-	"num_services": 3
-}
-```
-
-Response 200:
-
-```json
-{
-	"success": true,
-	"data": {
-		"id": "uuid",
-		"customerId": "uuid",
-		"name": "Jane Doe",
-		"email": "jane@example.com",
-		"tenure": 24,
-		"monthlyCharges": 89.5,
-		"contractType": "Month-to-month",
-		"internetService": "Fiber optic",
-		"paymentMethod": "Electronic check",
-		"churnProbability": 0.78,
-		"churnPrediction": true,
-		"riskLevel": "High",
-		"predictionDate": "2026-04-13T10:20:30.000Z"
-	}
-}
-```
-
-Notification behavior after prediction:
-
-- High-risk alert email sent if highRiskAlerts = true.
-- Summary email considered if dailyReports = true.
-
-### 3.6 Batch Prediction
-
-POST /api/batch
-
-- Multipart/form-data with field name file (CSV only).
-- Backend forwards CSV to ml-service /batch_predict.
-- Backend persists results and returns processed rows + warnings + CSV content.
-
-Response shape:
-
-```json
-{
-	"success": true,
-	"data": {
-		"processed": 123,
-		"results": [],
-		"csvContent": "customerId,...",
-		"warnings": [],
-		"rowWarnings": [],
-		"ignoredColumns": []
-	}
-}
-```
-
-### 3.7 Analytics, Metrics, Model Info, Customers
-
-GET /api/analytics
-
-- Backend proxy for ml-service analytics, with backend response envelope.
-
-GET /api/metrics
-
-- Returns model quality metrics and ROC/confusion matrix payload.
-
-GET /api/model-info
-
-- Returns selected model and metadata.
-
-GET /api/customers
-
-- Returns persisted prediction records with filtering support.
-
-## 4. ML Service API (Internal)
-
-Base URL: http://ml-service:8000 (inside Docker network)
-
-### Endpoints
-
-- GET /health
-- POST /predict
-- POST /batch_predict
-- GET /analytics
-- GET /metrics
-- GET /model-info
-
-### POST /predict input schema
-
-```json
-{
-	"gender": "Female",
-	"Dependents": "No",
-	"tenure": 24,
-	"PhoneService": "Yes",
-	"InternetService": "Fiber optic",
-	"Contract": "Month-to-month",
-	"PaperlessBilling": "Yes",
-	"PaymentMethod": "Electronic check",
-	"MonthlyCharges": 89.5,
-	"TotalCharges": 2148,
-	"num_services": 3,
-	"tenure_group": "established",
-	"charge_level": "high"
-}
-```
-
-Response:
-
-```json
-{
-	"probability": 0.78,
-	"prediction": true,
-	"risk": "High"
-}
-```
-
-## 5. Error Handling Contract
-
-Backend standardized error response:
-
-```json
-{
-	"success": false,
-	"message": "Error message"
-}
-```
-
-Additional details may be included for 4xx and development environments.
-
-## 6. Environment and Security Notes
-
-Key backend env vars:
-
-- AUTH_SECRET
-- SESSION_COOKIE_NAME
-- SESSION_TTL_MS
-- EMAIL_HOST
-- EMAIL_PORT
-- EMAIL_USERNAME
-- EMAIL_PASSWORD
-- EMAIL_FROM
-- EMAIL_RETRY_ATTEMPTS
-- RESET_CODE_TTL_MINUTES
-- RESET_REQUEST_WINDOW_MS
-- RESET_REQUEST_MAX_ATTEMPTS
-- HIGH_RISK_THRESHOLD
-
-Security controls currently implemented:
-
-- Password hashing via scrypt.
-- Reset code hashing via scrypt.
-- Timed reset expiry.
-- Rate-limited forgot-password requests.
-- Generic forgot-password responses.
-- Cookie-based authenticated session for protected APIs.
-
+Backend errors use a JSON response with `success: false` and a message. Invalid prediction payloads return HTTP 400; upstream ML service failures return a server error.

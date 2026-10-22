@@ -17,19 +17,6 @@ export function getRiskColor(riskLevel: string): string {
   }
 }
 
-export function getActionInsight(riskLevel: string): string {
-  switch (riskLevel) {
-    case "High":
-      return "Immediate retention action is required: prioritize outreach, service recovery, and targeted commercial intervention.";
-    case "Medium":
-      return "Use proactive support, journey remediation, and targeted communication before issues become irreversible.";
-    case "Low":
-      return "Keep the customer in standard engagement and monitoring flows without consuming scarce retention capacity.";
-    default:
-      return "";
-  }
-}
-
 export function getRiskBandRange(riskLevel: string): string {
   switch (riskLevel) {
     case "High":

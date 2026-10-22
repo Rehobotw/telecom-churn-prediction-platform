@@ -1,6 +1,6 @@
 # Telecom Churn Prediction Platform
 
-An end-to-end customer churn platform with a React dashboard, an Express API, and a FastAPI machine-learning service. The app supports customer analytics, churn predictions, notification alerts, and Docker Compose deployment.
+An end-to-end customer churn platform with a React dashboard, an Express API, and a FastAPI machine-learning service. It supports customer analytics, individual and CSV batch predictions, model evaluation, and Docker Compose deployment.
 
 ## Architecture
 
@@ -8,8 +8,7 @@ An end-to-end customer churn platform with a React dashboard, an Express API, an
 flowchart LR
   User[User] --> Frontend[React + Vite frontend]
   Frontend --> Backend[Express backend API]
-  Backend --> Data[(JSON data store)]
-  Backend --> Mail[SMTP email provider]
+  Backend --> Data[(JSON customer store)]
   Backend --> ML[FastAPI ML service]
   ML --> Models[(Trained model artifacts)]
 ```
@@ -18,9 +17,9 @@ flowchart LR
 
 | Service | Path | Default URL | Purpose |
 | --- | --- | --- | --- |
-| Frontend | `frontend` | `http://localhost:5173` locally, `http://localhost` in Docker | Dashboard UI |
-| Backend | `backend` | `http://localhost:3000/api` | Persistence, notifications, API gateway |
-| ML service | `ml-service` | `http://localhost:8000` | Churn prediction, model metrics, analytics |
+| Frontend | `frontend` | `http://localhost:5173` locally, `http://localhost` in Docker | Landing page and dashboard |
+| Backend | `backend` | `http://localhost:3000/api` | Customer persistence and API gateway |
+| ML service | `ml-service` | `http://localhost:8000` | Churn prediction, metrics, and analytics |
 
 ## Prerequisites
 
@@ -28,13 +27,10 @@ flowchart LR
 - Python 3.11
 - npm
 - Docker and Docker Compose, if running containers
-- SMTP credentials for password reset and alert emails
-
-For Gmail SMTP, use a Gmail app password. A normal Gmail account password will be rejected.
 
 ## Environment Setup
 
-1. Create local environment files:
+Create environment files from the examples when needed:
 
 ```bash
 cp backend/.env.example backend/.env
@@ -42,31 +38,11 @@ cp frontend/.env.example frontend/.env
 cp ml-service/.env.example ml-service/.env
 ```
 
-2. Edit `backend/.env`:
-
-```env
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change-this-password
-AUTH_SECRET=replace-with-a-long-random-secret
-ML_SERVICE_URL=http://localhost:8000
-FRONTEND_BASE_URL=http://localhost:5173
-
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USERNAME=your-gmail-address@gmail.com
-EMAIL_PASSWORD=your-16-character-gmail-app-password
-EMAIL_FROM="Churn Insights <your-gmail-address@gmail.com>"
-EMAIL_SECURE=false
-EXPOSE_RESET_CODE_IN_RESPONSE=false
-```
-
-The administrator email can later be changed from the Settings page after signing in. Password reset requests are accepted only for the currently configured administrator email.
+Configure the backend `ML_SERVICE_URL` and `CORS_ORIGIN` values for your setup. The sample customer credentials in Compose are development defaults; configure secure values for any deployment that enables authentication.
 
 ## Run Locally
 
-Open three terminals from the repository root.
-
-1. Start the ML service:
+Start the ML service, backend, and frontend in separate terminals:
 
 ```bash
 cd ml-service
@@ -76,69 +52,25 @@ pip install -r requirements.txt
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-2. Start the backend:
+```bash
+cd backend && npm install && npm start
+```
 
 ```bash
-cd backend
-npm install
-npm start
+cd frontend && npm install && npm run dev
 ```
 
-3. Start the frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-4. Open the app:
-
-```text
-http://localhost:5173
-```
-
-Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `backend/.env`.
+Open `http://localhost:5173`.
 
 ## Run With Docker Compose
 
-1. Create a root `.env` file for Compose values:
-
-```env
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change-this-password
-AUTH_SECRET=replace-with-a-long-random-secret
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USERNAME=your-gmail-address@gmail.com
-EMAIL_PASSWORD=your-16-character-gmail-app-password
-EMAIL_FROM="Churn Insights <your-gmail-address@gmail.com>"
-FRONTEND_BASE_URL=http://localhost
-```
-
-2. Build and start the stack:
+Set deployment values in a root `.env` file as needed, then run:
 
 ```bash
 docker compose up --build
 ```
 
-3. Open:
-
-```text
-http://localhost
-```
-
-Docker services:
-
-| Service | Host URL |
-| --- | --- |
-| Frontend | `http://localhost` |
-| Backend API | `http://localhost:3000/api` |
-| ML service | `http://localhost:8000` |
-
-## Email Alerts
-
-Alert emails are sent through the SMTP settings in `backend/.env` or the Compose `.env`. High-risk churn predictions trigger professional notification emails when alerting is enabled in Settings. Manual test alerts can also be sent from the platform.
+Open `http://localhost`.
 
 ## Useful Commands
 
@@ -148,26 +80,15 @@ node -c backend/src/server.js
 
 # Frontend production build
 cd frontend && npm run build
-
-# Docker rebuild without cache
-docker compose build --no-cache
 ```
-
-## Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| Frontend cannot reach API | Confirm backend is running on port `3000` and `VITE_API_BASE_URL` is correct |
-| Backend cannot reach ML service | Confirm `ML_SERVICE_URL` points to `http://localhost:8000` locally or `http://ml-service:8000` in Docker |
-| Docker frontend is unavailable | Rebuild with `docker compose up --build` and check container health |
 
 ## Repository Layout
 
 ```text
 .
-├── backend      # Express API, auth, notifications, persistence
-├── frontend     # React/Vite dashboard
-├── ml-service   # FastAPI ML inference service
-├── docs         # Supporting architecture and API documentation
+├── backend      # Express API and customer persistence
+├── frontend     # React/Vite landing page and dashboard
+├── ml-service   # FastAPI inference service and model artifacts
+├── docs         # Architecture, API, EDA, and model evaluation
 └── docker-compose.yml
 ```

@@ -145,7 +145,6 @@ function getFakeIdentity(seedSource: string) {
   const lastName = faker.person.lastName();
   return {
     name: `${firstName} ${lastName}`,
-    email: faker.internet.email({ firstName, lastName }).toLowerCase(),
   };
 }
 
@@ -163,7 +162,6 @@ function mapCustomerRecord(customer: CustomerRecord) {
     ...customer,
     displayId: formatDisplayCustomerId(customer.id),
     name: isPlaceholderIdentity(customer.name) ? fallback.name : customer.name,
-    email: isPlaceholderIdentity(customer.email) ? fallback.email : customer.email,
   };
 }
 

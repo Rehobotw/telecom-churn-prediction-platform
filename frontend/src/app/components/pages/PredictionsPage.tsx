@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { getActionInsight, getRiskBandRange, formatPercent, formatCurrency } from "../../lib/utils";
+import { getRiskBandRange, formatPercent, formatCurrency } from "../../lib/utils";
 import {
   createPrediction,
   uploadBatchPredictions,
@@ -46,7 +46,6 @@ type AddOnService = (typeof ADD_ON_SERVICE_OPTIONS)[number];
 
 type SingleEntryFormData = {
   customerName: string;
-  email: string;
   gender: "Male" | "Female" | "";
   dependents: boolean;
   tenure: string;
@@ -87,7 +86,6 @@ type RequestStatus = "idle" | "loading" | "error" | "success";
 
 const initialFormData: SingleEntryFormData = {
   customerName: "",
-  email: "",
   gender: "",
   dependents: false,
   tenure: "",
@@ -146,7 +144,6 @@ export function PredictionsPage() {
 
     const validationErrors: string[] = [];
     if (!formData.customerName.trim()) validationErrors.push("customerName");
-    if (!formData.email.trim()) validationErrors.push("email");
     if (!formData.gender) validationErrors.push("gender");
     if (!formData.tenure) validationErrors.push("tenure");
     if (!formData.contractType) validationErrors.push("contractType");
@@ -173,16 +170,9 @@ export function PredictionsPage() {
       return;
     }
 
-    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
-    if (!isEmailValid) {
-      setMissingFields((prev) => (prev.includes("email") ? prev : [...prev, "email"]));
-      return;
-    }
-
     // Identity fields are intentionally excluded from the model payload.
     const modelPayload: PredictionPayload = {
       customerName: formData.customerName.trim(),
-      email: formData.email.trim(),
       gender: formData.gender as ModelFeaturePayload["gender"],
       dependents: formData.dependents,
       tenure,
@@ -299,21 +289,21 @@ export function PredictionsPage() {
       level: "High",
       icon: ShieldAlert,
       accent: "border-red-200 bg-red-50 text-red-900",
-      description: "Immediate retention offer, priority outreach, service recovery, and commercial intervention should be actioned first.",
+      description: "This segment has the highest estimated churn likelihood in the batch.",
       count: batchSummary.high,
     },
     {
       level: "Medium",
       icon: ShieldEllipsis,
       accent: "border-amber-200 bg-amber-50 text-amber-900",
-      description: "Route to proactive support, journey remediation, targeted messaging, and lower-cost interventions first.",
+      description: "This segment has a moderate estimated churn likelihood in the batch.",
       count: batchSummary.medium,
     },
     {
       level: "Low",
       icon: ShieldCheck,
       accent: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      description: "Keep in standard engagement, automated nurturing, and monitoring unless risk materially changes.",
+      description: "This segment has the lowest estimated churn likelihood in the batch.",
       count: batchSummary.low,
     },
   ] as const;
@@ -326,7 +316,6 @@ export function PredictionsPage() {
           label: "text-red-900",
           sublabel: "text-red-700",
           chip: "bg-red-100 text-red-800 border-red-200",
-          action: "border-red-200 bg-white/80",
         }
       : prediction?.riskLevel === "Medium"
         ? {
@@ -335,7 +324,6 @@ export function PredictionsPage() {
             label: "text-amber-900",
             sublabel: "text-amber-700",
             chip: "bg-amber-100 text-amber-800 border-amber-200",
-            action: "border-amber-200 bg-white/80",
           }
         : {
             panel: "border-emerald-200 bg-emerald-50/80",
@@ -343,7 +331,6 @@ export function PredictionsPage() {
             label: "text-emerald-900",
             sublabel: "text-emerald-700",
             chip: "bg-emerald-100 text-emerald-800 border-emerald-200",
-            action: "border-emerald-200 bg-white/80",
           };
 
   return (
@@ -385,7 +372,7 @@ export function PredictionsPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <section className="rounded-xl border border-[#E5E7EB] p-4 space-y-4">
                   <h3 className="text-sm font-semibold text-gray-900">Customer Details</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-gray-700">Customer Name</label>
                       <Input
@@ -399,19 +386,6 @@ export function PredictionsPage() {
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <Input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => {
-                          setFormData({ ...formData, email: e.target.value });
-                          setMissingFields((prev) => prev.filter((field) => field !== "email"));
-                        }}
-                        className={inputBorderClass("email")}
-                        placeholder="jane@company.com"
-                      />
-                    </div>
                   </div>
                 </section>
 
@@ -745,7 +719,6 @@ export function PredictionsPage() {
                       <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
                         <div className="text-xs uppercase tracking-[0.16em] text-gray-500">Customer</div>
                         <div className="mt-2 text-lg font-semibold text-gray-900">{formData.customerName || "Unknown customer"}</div>
-                        <div className="mt-1 text-sm text-gray-500">{formData.email || "No email provided"}</div>
                         <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">
                           <span className="rounded-full bg-gray-100 px-2.5 py-1">Tenure: {formData.tenure || "--"} months</span>
                           <span className="rounded-full bg-gray-100 px-2.5 py-1">Monthly: {formData.monthlyCharges || "--"}</span>
@@ -753,10 +726,6 @@ export function PredictionsPage() {
                       </div>
                     </div>
 
-                    <div className={`relative rounded-xl border p-4 ${singlePredictionTheme.action}`}>
-                      <div className="text-sm font-medium text-gray-900">Action insight</div>
-                      <div className="mt-1 text-sm leading-6 text-gray-600">{getActionInsight(prediction.riskLevel)}</div>
-                    </div>
                   </div>
                 </div>
               )}
