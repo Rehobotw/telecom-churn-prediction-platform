@@ -3,7 +3,6 @@ const customerService = require('../services/customerService');
 const { v4: uuidv4 } = require('uuid');
 const { generateCSV } = require('../utils/csvHandler');
 const fs = require('fs').promises;
-const notificationService = require('../services/notificationService');
 
 const FIRST_NAMES = [
   'Amina',
@@ -70,10 +69,6 @@ const predictBatch = async (req, res, next) => {
 
     const existingCustomers = await customerService.getCustomers();
     await customerService.saveCustomers([...existingCustomers, ...processedData]);
-
-    await notificationService.notifyBatchPrediction(processedData).catch((err) => {
-      console.error('[notifications] failed for batch prediction:', err?.message || err);
-    });
 
     const csvContent = generateCSV(
       processedData.map((row) => ({

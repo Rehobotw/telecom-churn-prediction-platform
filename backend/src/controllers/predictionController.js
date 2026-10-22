@@ -1,7 +1,6 @@
 const mlService = require('../services/mlService');
 const customerService = require('../services/customerService');
 const { v4: uuidv4 } = require('uuid');
-const notificationService = require('../services/notificationService');
 
 const predictChurn = async (req, res, next) => {
   try {
@@ -27,10 +26,6 @@ const predictChurn = async (req, res, next) => {
 
     await customerService.saveCustomer(responseData);
 
-    await notificationService.notifySinglePrediction(responseData).catch((err) => {
-      console.error('[notifications] failed for single prediction:', err?.message || err);
-    });
-
     res.json({
       success: true,
       data: responseData,
@@ -43,3 +38,4 @@ const predictChurn = async (req, res, next) => {
 module.exports = {
   predictChurn,
 };
+
