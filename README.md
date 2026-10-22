@@ -1,12 +1,12 @@
 # Telecom Churn Prediction Platform
 
-An end-to-end customer churn platform with a React dashboard, an Express API, and a FastAPI machine-learning service. The app supports authenticated admin access, customer analytics, churn predictions, notification alerts, SMTP-based password resets, and Docker Compose deployment.
+An end-to-end customer churn platform with a React dashboard, an Express API, and a FastAPI machine-learning service. The app supports customer analytics, churn predictions, notification alerts, and Docker Compose deployment.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  User[Admin user] --> Frontend[React + Vite frontend]
+  User[User] --> Frontend[React + Vite frontend]
   Frontend --> Backend[Express backend API]
   Backend --> Data[(JSON data store)]
   Backend --> Mail[SMTP email provider]
@@ -18,8 +18,8 @@ flowchart LR
 
 | Service | Path | Default URL | Purpose |
 | --- | --- | --- | --- |
-| Frontend | `frontend` | `http://localhost:5173` locally, `http://localhost` in Docker | Dashboard and login UI |
-| Backend | `backend` | `http://localhost:3000/api` | Auth, persistence, notifications, API gateway |
+| Frontend | `frontend` | `http://localhost:5173` locally, `http://localhost` in Docker | Dashboard UI |
+| Backend | `backend` | `http://localhost:3000/api` | Persistence, notifications, API gateway |
 | ML service | `ml-service` | `http://localhost:8000` | Churn prediction, model metrics, analytics |
 
 ## Prerequisites
@@ -136,15 +136,6 @@ Docker services:
 | Backend API | `http://localhost:3000/api` |
 | ML service | `http://localhost:8000` |
 
-## Password Reset
-
-1. Click **Forgot password?** on the login page.
-2. Enter the administrator email configured for the platform.
-3. The backend sends a six-digit code to that email.
-4. Enter the code and the new password.
-
-If a non-admin email is entered, the app shows a warning and does not send a reset code.
-
 ## Email Alerts
 
 Alert emails are sent through the SMTP settings in `backend/.env` or the Compose `.env`. High-risk churn predictions trigger professional notification emails when alerting is enabled in Settings. Manual test alerts can also be sent from the platform.
@@ -166,7 +157,6 @@ docker compose build --no-cache
 
 | Problem | Fix |
 | --- | --- |
-| Password reset says SMTP login failed | Use a valid SMTP app password and restart the backend |
 | Frontend cannot reach API | Confirm backend is running on port `3000` and `VITE_API_BASE_URL` is correct |
 | Backend cannot reach ML service | Confirm `ML_SERVICE_URL` points to `http://localhost:8000` locally or `http://ml-service:8000` in Docker |
 | Docker frontend is unavailable | Rebuild with `docker compose up --build` and check container health |

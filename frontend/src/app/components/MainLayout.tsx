@@ -1,33 +1,8 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, Target, Users, BarChart3, Settings, LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
-import { clearAuthenticatedSession, validateAuthenticatedSession } from "../lib/auth";
+import { Outlet, Link, useLocation } from "react-router";
+import { LayoutDashboard, Target, Users, BarChart3, Settings } from "lucide-react";
 
 export function MainLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [authReady, setAuthReady] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    void validateAuthenticatedSession().then((session) => {
-      if (!isMounted) {
-        return;
-      }
-
-      if (!session?.authenticated) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      setAuthReady(true);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
 
   const navItems = [
     { path: "/app", label: "Overview", icon: LayoutDashboard },
@@ -36,15 +11,6 @@ export function MainLayout() {
     { path: "/app/model-metrics", label: "Model Metrics", icon: BarChart3 },
     { path: "/app/settings", label: "Settings", icon: Settings },
   ];
-
-  const handleLogout = async () => {
-    await clearAuthenticatedSession();
-    navigate("/login", { replace: true });
-  };
-
-  if (!authReady) {
-    return null;
-  }
 
   return (
     <div className="flex h-screen bg-[#F9FAFB]">
@@ -78,16 +44,6 @@ export function MainLayout() {
             );
           })}
         </nav>
-
-        <div className="p-4 border-t border-[#E5E7EB]">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -97,3 +53,4 @@ export function MainLayout() {
     </div>
   );
 }
+

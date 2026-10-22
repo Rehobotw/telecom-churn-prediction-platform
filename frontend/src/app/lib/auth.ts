@@ -10,31 +10,17 @@ export type AccountProfile = {
   preferences: AccountPreferences;
 };
 
-type ForgotPasswordResponse = {
-  email: string;
-  delivery?: "email" | "fallback";
-  resetCode?: string;
-};
-
-type SessionState = {
-  authenticated: boolean;
-  email: string;
-  timestamp: string;
-};
-
 const API_BASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const PREFERENCES_STORAGE_KEY = "churn-insights-account-preferences";
-const SESSION_STORAGE_KEY = "churn-insights-auth";
-const REMEMBER_EMAIL_STORAGE_KEY = "churn-insights-remember-email";
 
-const defaultPreferences: AccountPreferences = {
+export const defaultPreferences: AccountPreferences = {
   highRiskAlerts: true,
   dailyReports: false,
   notificationEmails: [],
   autoRetrain: "Monthly",
 };
 
-async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: "include",
@@ -61,7 +47,7 @@ function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function getStoredPreferences(): AccountPreferences {
+export function getStoredPreferences(): AccountPreferences {
   if (!canUseStorage()) {
     return defaultPreferences;
   }
@@ -88,8 +74,22 @@ function getStoredPreferences(): AccountPreferences {
   }
 }
 
+export async function getAccountPreferences(): Promise<AccountPreferences> {
+  try {
+    const response = await apiRequest<{ success: boolean; data: AccountPreferences }>(
+      "/api/auth/preferences"
+    );
+    if (canUseStorage() && response.data) {
+      window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(response.data));
+    }
+    return response.data;
+  } catch {
+    return getStoredPreferences();
+  }
+}
+
 export async function updateAccountPreferences(preferences: AccountPreferences) {
-  const response = await authRequest<{ success: boolean; data: AccountPreferences }>(
+  const response = await apiRequest<{ success: boolean; data: AccountPreferences }>(
     "/api/auth/preferences",
     {
       method: "PATCH",
@@ -104,155 +104,16 @@ export async function updateAccountPreferences(preferences: AccountPreferences) 
   return response.data;
 }
 
-export function getAuthenticatedSession() {
-  if (!canUseStorage()) {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as SessionState;
-  } catch {
-    return null;
-  }
-}
-
-export function setAuthenticatedSession(email: string) {
-  if (!canUseStorage()) {
-    return;
-  }
-
-  window.localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({
-      authenticated: true,
-      email: email.trim().toLowerCase(),
-      timestamp: new Date().toISOString(),
-    } satisfies SessionState),
-  );
-}
-
-function clearAuthenticatedSessionHint() {
-  if (!canUseStorage()) {
-    return;
-  }
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
-}
-
-export function isAuthenticated() {
-  return Boolean(getAuthenticatedSession()?.authenticated);
-}
-
-export async function authenticate(email: string, password: string, rememberMe = false) {
-  const response = await authRequest<{ success: boolean; data: { email: string; rememberMe: boolean } }>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({
-      email: email.trim().toLowerCase(),
-      password,
-      rememberMe,
-    }),
-  });
-
-  setAuthenticatedSession(response.data.email);
-  return response.data;
-}
-
-export async function validateAuthenticatedSession() {
-  try {
-    const response = await authRequest<{
-      success: boolean;
-      data: { authenticated: boolean; email: string; profile: { email: string; preferences: AccountPreferences } };
-    }>("/api/auth/me");
-
-    setAuthenticatedSession(response.data.email);
-
-    if (canUseStorage()) {
-      window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(response.data.profile.preferences));
-    }
-
-    return response.data;
-  } catch {
-    clearAuthenticatedSessionHint();
-    return null;
-  }
-}
-
-export async function clearAuthenticatedSession() {
-  try {
-    await authRequest("/api/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-  } finally {
-    clearAuthenticatedSessionHint();
-  }
-}
-
 export async function getAccountProfile(): Promise<AccountProfile> {
-  const session = await validateAuthenticatedSession();
-  if (!session) {
-    throw new Error("Authentication required");
-  }
-
+  const preferences = await getAccountPreferences();
   return {
-    email: session.profile.email,
-    preferences: session.profile.preferences ?? getStoredPreferences(),
+    email: "",
+    preferences,
   };
 }
 
-export async function updateAccountEmail(nextEmail: string) {
-  const response = await authRequest<{ success: boolean; data: { email: string } }>("/api/auth/email", {
-    method: "PATCH",
-    body: JSON.stringify({ email: nextEmail.trim().toLowerCase() }),
-  });
-  setAuthenticatedSession(response.data.email);
-  if (canUseStorage() && window.localStorage.getItem(REMEMBER_EMAIL_STORAGE_KEY)) {
-    window.localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, response.data.email);
-  }
-  return response.data;
-}
-
-export async function updateAccountPassword(currentPassword: string, newPassword: string) {
-  await authRequest("/api/auth/password", {
-    method: "PATCH",
-    body: JSON.stringify({ currentPassword, newPassword }),
-  });
-}
-
-export async function requestPasswordReset(email: string) {
-  const response = await authRequest<{ success: boolean; data: ForgotPasswordResponse; message?: string }>(
-    "/api/auth/forgot-password",
-    {
-      method: "POST",
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
-    },
-  );
-
-  return response.data;
-}
-
-export async function resetPassword(email: string, resetCode: string, newPassword: string) {
-  const response = await authRequest<{ success: boolean; data: { email: string }; message?: string }>(
-    "/api/auth/reset-password",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        resetCode: resetCode.trim(),
-        newPassword,
-      }),
-    },
-  );
-
-  return response.data;
-}
-
 export async function sendNotificationAlert(toEmail?: string) {
-  const response = await authRequest<{
+  const response = await apiRequest<{
     success: boolean;
     data: { delivered: string[]; failed: Array<{ to: string; message: string }> };
     message?: string;
@@ -268,4 +129,3 @@ export async function sendNotificationAlert(toEmail?: string) {
   return response.data;
 }
 
-export { REMEMBER_EMAIL_STORAGE_KEY };

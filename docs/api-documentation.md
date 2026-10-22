@@ -20,35 +20,24 @@ Default local URLs:
 - Backend: http://localhost:3000
 - ML Service: http://localhost:8000
 
-## 2. Authentication and Session Model
+## 2. Access Model
 
-Session mechanism:
+The platform does not require user login sessions. All endpoints are open and accessible to the frontend client without authentication.
 
-- Cookie-based auth using signed session token.
-- Cookie name: churn_session (configurable).
-- Protected backend routes require a valid session cookie.
-
-Unprotected backend routes:
+Available backend routes:
 
 - GET /api/health
-- POST /api/auth/login
-- POST /api/auth/forgot-password
-- POST /api/auth/reset-password
-
-Protected backend routes:
-
-- POST /api/auth/logout
-- GET /api/auth/me
-- PATCH /api/auth/email
-- PATCH /api/auth/password
+- GET /api/auth/preferences
 - PATCH /api/auth/preferences
 - POST /api/auth/test-email
+- POST /api/auth/notification-alert
 - POST /api/predict or /api/predictions
 - POST /api/batch
 - GET /api/analytics
 - GET /api/metrics
 - GET /api/model-info
 - GET /api/customers
+
 
 ## 3. Backend API (Client-Facing)
 
@@ -69,19 +58,9 @@ Response 200:
 }
 ```
 
-### 3.2 Auth and Account
+### 3.2 Notification Settings
 
-POST /api/auth/login
-
-Request:
-
-```json
-{
-	"email": "admin@example.com",
-	"password": "your-password",
-	"rememberMe": true
-}
-```
+GET /api/auth/preferences
 
 Response 200:
 
@@ -89,117 +68,16 @@ Response 200:
 {
 	"success": true,
 	"data": {
-		"email": "admin@example.com",
-		"rememberMe": true
+		"highRiskAlerts": true,
+		"dailyReports": false,
+		"notificationEmails": ["admin@example.com"],
+		"autoRetrain": "Monthly"
 	}
 }
 ```
 
-POST /api/auth/logout
+### 3.3 Notification Settings and SMTP Test
 
-- Requires session.
-- Clears auth cookie.
-
-GET /api/auth/me
-
-- Requires session.
-- Returns account email and current notification preferences.
-
-Response 200:
-
-```json
-{
-	"success": true,
-	"data": {
-		"authenticated": true,
-		"email": "admin@example.com",
-		"profile": {
-			"email": "admin@example.com",
-			"preferences": {
-				"highRiskAlerts": true,
-				"dailyReports": false,
-				"notificationEmails": ["admin@example.com"],
-				"autoRetrain": "Monthly"
-			}
-		}
-	}
-}
-```
-
-PATCH /api/auth/email
-
-Request:
-
-```json
-{
-	"email": "new-admin@example.com"
-}
-```
-
-PATCH /api/auth/password
-
-Request:
-
-```json
-{
-	"currentPassword": "old-password",
-	"newPassword": "new-password-123"
-}
-```
-
-### 3.3 Password Reset via SMTP
-
-POST /api/auth/forgot-password
-
-Request:
-
-```json
-{
-	"email": "admin@example.com"
-}
-```
-
-Response behavior:
-
-- Returns a generic success message for anti-enumeration behavior when the request is accepted.
-- If the email does not match the configured account, the endpoint still returns a generic success response without sending mail.
-- Reset code is not returned in normal API responses; only explicit local-debug fallback mode can include it.
-- Reset code is generated securely, hashed at rest, and expires after configured TTL (default 15 minutes).
-- Reset requests are rate-limited per email+IP window.
-- If SMTP delivery fails, the endpoint returns a clear SMTP configuration error unless `EXPOSE_RESET_CODE_IN_RESPONSE=true` is explicitly enabled for local debugging.
-
-Response 200:
-
-```json
-{
-	"success": true,
-	"data": {
-		"email": "admin@example.com"
-	},
-	"message": "If the account exists, a reset code has been sent by email"
-}
-```
-
-POST /api/auth/reset-password
-
-Request:
-
-```json
-{
-	"email": "admin@example.com",
-	"resetCode": "123456",
-	"newPassword": "new-password-123"
-}
-```
-
-Possible errors:
-
-- 400 invalid request
-- 400 no active reset request
-- 400 reset code expired
-- 400 invalid reset code
-
-### 3.4 Notification Settings and SMTP Test
 
 PATCH /api/auth/preferences
 

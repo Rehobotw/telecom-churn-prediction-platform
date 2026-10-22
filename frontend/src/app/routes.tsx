@@ -1,13 +1,13 @@
 import { Navigate, createBrowserRouter } from "react-router";
 import { MainLayout } from "./components/MainLayout";
-import { LoginPage } from "./components/pages/LoginPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { PredictionsPage } from "./components/pages/PredictionsPage";
 import { CustomersPage } from "./components/pages/CustomersPage";
 import { ModelMetricsPage } from "./components/pages/ModelMetricsPage";
 import { SettingsPage } from "./components/pages/SettingsPage";
+
 function RootRedirect() {
-  return <Navigate to="/login" replace />;
+  return <Navigate to="/app" replace />;
 }
 
 export const router = createBrowserRouter([
@@ -17,7 +17,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/login",
-    Component: LoginPage,
+    Component: RootRedirect,
   },
   {
     path: "/app",
@@ -35,3 +35,4 @@ export const router = createBrowserRouter([
     Component: RootRedirect,
   },
 ]);
+

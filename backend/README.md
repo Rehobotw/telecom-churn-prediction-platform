@@ -122,13 +122,12 @@ The API will be available at `http://localhost:3000` (or your configured port).
 - **Query params**: `search`, `risk`, `contractType`
 - **Response**: List of stored customer records
 
-### Auth and Notification Settings
+### Notification Settings
 
-- **POST** `/api/auth/forgot-password`: Sends a reset email with a 6-digit code and reset link. If SMTP delivery fails and `EXPOSE_RESET_CODE_IN_RESPONSE=true`, response includes `data.resetCode` for local/dev fallback. Otherwise the request fails with a clear SMTP configuration error.
-- **POST** `/api/auth/reset-password`: Completes password reset using emailed code
+- **GET** `/api/auth/preferences`: Retrieves notification settings (`highRiskAlerts`, `dailyReports`, `notificationEmails`)
 - **PATCH** `/api/auth/preferences`: Updates notification settings (`highRiskAlerts`, `dailyReports`, `notificationEmails`)
 - **POST** `/api/auth/test-email`: Sends a test email to verify SMTP configuration
-- **POST** `/api/auth/notification-alert`: Sends an immediate notification alert to saved recipients and the login email
+- **POST** `/api/auth/notification-alert`: Sends an immediate notification alert to saved recipients
 
 High-risk alerts are sent immediately after qualifying predictions. Daily reports are sent automatically when `dailyReports` is enabled and the scheduled job is running.
 
