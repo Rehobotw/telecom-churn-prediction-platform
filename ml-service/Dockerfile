@@ -1,16 +1,17 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+WORKDIR /app/ml-service
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
-COPY requirements.txt ./
+COPY ml-service/requirements.txt ./
 RUN pip install --upgrade pip \
   && pip install -r requirements.txt
 
-COPY . ./
+COPY ml-service/ ./
+COPY data/processed/ /app/data/processed/
 
 RUN addgroup --system app \
   && adduser --system --ingroup app app \

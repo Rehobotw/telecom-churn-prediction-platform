@@ -1,7 +1,8 @@
 services:
   ml-service:
     build:
-      context: ./ml-service
+      context: .
+      dockerfile: ml-service/Dockerfile
     environment:
       ML_CORS_ORIGINS: ${ML_CORS_ORIGINS:-http://localhost,http://localhost:80,http://frontend}
     restart: unless-stopped

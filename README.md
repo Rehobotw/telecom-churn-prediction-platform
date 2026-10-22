@@ -29,6 +29,8 @@ Install Docker Engine and the Docker Compose plugin, then run this command from 
 docker compose up --build
 ```
 
+The trained model files are stored with Git LFS. On a fresh clone, make sure Git LFS is installed and the model files were downloaded before building the images (`git lfs pull`).
+
 This builds and starts the React frontend, Express API, and FastAPI ML service. On the first run Docker downloads the base images and installs the service dependencies, so the build can take a few minutes. When it is ready, open `http://localhost`.
 
 Use `Ctrl+C` to stop the foreground stack. To start it in the background, add `-d` and stop it later with `docker compose down`:
