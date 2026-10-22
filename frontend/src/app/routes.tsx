@@ -5,19 +5,16 @@ import { PredictionsPage } from "./components/pages/PredictionsPage";
 import { CustomersPage } from "./components/pages/CustomersPage";
 import { ModelMetricsPage } from "./components/pages/ModelMetricsPage";
 import { SettingsPage } from "./components/pages/SettingsPage";
-
-function RootRedirect() {
-  return <Navigate to="/app" replace />;
-}
+import { LandingPage } from "./components/pages/LandingPage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: RootRedirect,
+    Component: LandingPage,
   },
   {
     path: "/login",
-    Component: RootRedirect,
+    element: <Navigate to="/app" replace />,
   },
   {
     path: "/app",
@@ -32,7 +29,6 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    Component: RootRedirect,
+    element: <Navigate to="/" replace />,
   },
 ]);
-
